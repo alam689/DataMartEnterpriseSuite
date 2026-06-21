@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   ChevronRight, ArrowLeft, Plus, Search, Trash2, FileText, Save, Send, FileSearch,
-  CheckCircle2, XCircle, FileEdit, Package, Printer, Eye, Database, Building, Scale, Award, ListChecks, X,
+  CheckCircle2, XCircle, FileEdit, Package, Printer, Eye, Database, Building, Scale, Award, ListChecks, X, Pencil,
 } from 'lucide-react'
 import { prSource } from '../../../data/prSource.js'
 import './Rfq.css'
@@ -326,6 +326,7 @@ export default function Rfq({ onHome, onBack }) {
   const [supSel, setSupSel] = useState([])
   const [remarks, setRemarks] = useState('')
   const [touched, setTouched] = useState(false)
+  const [editingNo, setEditingNo] = useState(null) // null = creating new
   // PR item picker
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerSel, setPickerSel] = useState([])
@@ -413,9 +414,19 @@ export default function Rfq({ onHome, onBack }) {
   const removeItem = (id) => setItems((l) => (l.length > 1 ? l.filter((x) => x.id !== id) : l))
   const updateItem = (id, f, v) => setItems((l) => l.map((x) => (x.id === id ? { ...x, [f]: v } : x)))
   const toggleSup = (name) => setSupSel((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name]))
-  const resetForm = () => { setHeader({ date: TODAY, dept: '', requiredBy: '' }); setItems([newItem()]); setSupSel([]); setRemarks(''); setTouched(false) }
+  const resetForm = () => { setHeader({ date: TODAY, dept: '', requiredBy: '' }); setItems([newItem()]); setSupSel([]); setRemarks(''); setTouched(false); setEditingNo(null) }
   const openForm = () => { resetForm(); setMode('form') }
+  const openEditForm = (rfq) => {
+    setEditingNo(rfq.no)
+    setHeader({ date: rfq.date, dept: rfq.dept, requiredBy: rfq.requiredBy })
+    setItems(rfq.items.map((it) => ({ ...newItem(), item: it.item, desc: it.desc, uom: it.uom, qty: String(it.qty), prNo: it.prNo || '' })))
+    setSupSel(rfq.quotes.map((q) => q.supplier))
+    setRemarks(rfq.remarks || '')
+    setTouched(false)
+    setMode('form')
+  }
   const closeForm = () => { resetForm(); setMode('list') }
+  const formNo = editingNo || nextNo
 
   // PR picker
   const togglePick = (key) => setPickerSel((s) => (s.includes(key) ? s.filter((x) => x !== key) : [...s, key]))
@@ -439,13 +450,38 @@ export default function Rfq({ onHome, onBack }) {
 
   const validItems = items.filter((l) => l.item.trim() && Number(l.qty) > 0)
   const canSend = header.dept && header.requiredBy && validItems.length > 0 && supSel.length > 0
+  const itemKey = (it) => `${it.item}|${it.desc}|${it.uom}`
   const commitRfq = (status) => {
     setTouched(true)
     if (status === 'Sent' && !canSend) return
+    const newItems = validItems.map((l) => ({ item: l.item, desc: l.desc, uom: l.uom, qty: Number(l.qty) || 0, prNo: l.prNo || '' }))
+
+    if (editingNo) {
+      updateRfq(editingNo, (r) => {
+        // Rebuild quotes for the chosen suppliers, preserving entered data per item.
+        const quotes = supSel.map((s) => {
+          const ex = r.quotes.find((q) => q.supplier === s)
+          const rates = newItems.map((ni) => {
+            if (!ex) return ''
+            const oi = r.items.findIndex((it) => itemKey(it) === itemKey(ni))
+            return oi >= 0 ? ex.rates[oi] : ''
+          })
+          return ex
+            ? { ...ex, rates }
+            : { supplier: s, received: false, deliveryDays: '', validityDays: '', rates: newItems.map(() => '') }
+        })
+        const anyRecv = quotes.some((q) => q.received)
+        const finalStatus = anyRecv ? 'Quoted' : (status === 'Draft' ? 'Draft' : 'Sent')
+        // Editing changes the basis, so any existing comparative statement is reset.
+        return { ...r, ...header, items: newItems, remarks, quotes, status: finalStatus, csStatus: 'None', award: [], csDecisionNote: '', csDecidedOn: '' }
+      })
+      closeForm(); return
+    }
+
     const record = {
       ...header, no: nextNo, status, remarks, csStatus: 'None', award: [], csDecisionNote: '', csDecidedOn: '',
-      items: validItems.map((l) => ({ item: l.item, desc: l.desc, uom: l.uom, qty: Number(l.qty) || 0, prNo: l.prNo || '' })),
-      quotes: supSel.map((s) => ({ supplier: s, received: false, deliveryDays: '', validityDays: '', rates: validItems.map(() => '') })),
+      items: newItems,
+      quotes: supSel.map((s) => ({ supplier: s, received: false, deliveryDays: '', validityDays: '', rates: newItems.map(() => '') })),
     }
     setRfqs((p) => [record, ...p]); closeForm()
   }
@@ -694,6 +730,7 @@ export default function Rfq({ onHome, onBack }) {
           </div>
           <div className="mh-actions">
             <button className="btn btn-ghost" onClick={() => setMode('list')}>Back</button>
+            {current.status !== 'Closed' && <button className="btn btn-ghost" onClick={() => openEditForm(current)}><Pencil size={15} /> Edit</button>}
             <button className="btn btn-ghost" onClick={() => setPrintMode('rfq')}><Printer size={16} /> Print RFQ</button>
             <button className="btn btn-primary" onClick={() => openCs(current.no)} disabled={recd === 0}><Scale size={16} /> Comparative Statement</button>
           </div>
@@ -746,24 +783,24 @@ export default function Rfq({ onHome, onBack }) {
   if (mode === 'form') {
     return (
       <div className="req fade-in">
-        {crumbBar(<><button onClick={closeForm}>RFQ</button><ChevronRight size={14} /><span>New</span></>)}
+        {crumbBar(<><button onClick={closeForm}>RFQ</button><ChevronRight size={14} /><span>{editingNo ? 'Edit' : 'New'}</span></>)}
         <header className="req-head">
           <div className="req-title">
             <button className="back-btn" onClick={closeForm}><ArrowLeft size={18} /></button>
             <span className="req-mark"><FileText size={22} /></span>
-            <div><h1>New RFQ <span className="pr-no">{nextNo}</span></h1><p>Pull items from PRs or add manually, then invite suppliers.</p></div>
+            <div><h1>{editingNo ? 'Edit RFQ' : 'New RFQ'} <span className="pr-no">{formNo}</span></h1><p>{editingNo ? 'Update items and suppliers — this resets any comparative statement.' : 'Pull items from PRs or add manually, then invite suppliers.'}</p></div>
           </div>
           <div className="mh-actions">
             <button className="btn btn-ghost" onClick={closeForm}>Cancel</button>
             <button className="btn btn-ghost" onClick={() => commitRfq('Draft')}><Save size={16} /> Save Draft</button>
-            <button className="btn btn-primary" onClick={() => commitRfq('Sent')} disabled={!canSend}><Send size={16} /> Send to Suppliers</button>
+            <button className="btn btn-primary" onClick={() => commitRfq('Sent')} disabled={!canSend}><Send size={16} /> {editingNo ? 'Update' : 'Send to Suppliers'}</button>
           </div>
         </header>
 
         <section className="panel form-panel">
           <div className="panel-head"><h2>RFQ Details</h2></div>
           <div className="form-grid">
-            <label className="fld"><span>RFQ No.</span><input value={nextNo} readOnly className="ro" /></label>
+            <label className="fld"><span>RFQ No.</span><input value={formNo} readOnly className="ro" /></label>
             <label className="fld"><span>Date</span><input type="date" value={header.date} onChange={(e) => setHeader((h) => ({ ...h, date: e.target.value }))} /></label>
             <label className={`fld ${touched && !header.dept ? 'invalid' : ''}`}><span>Department *</span>
               <select value={header.dept} onChange={(e) => setHeader((h) => ({ ...h, dept: e.target.value }))}>
@@ -871,6 +908,7 @@ export default function Rfq({ onHome, onBack }) {
                   <td><span className={`status tone-${sm.tone}`}><SIcon size={13} /> {r.status}</span></td>
                   <td className="row-actions">
                     <button className="row-act" title="View" onClick={(e) => { e.stopPropagation(); openView(r.no) }}><Eye size={16} /></button>
+                    {r.status !== 'Closed' && <button className="row-act edit" title="Edit" onClick={(e) => { e.stopPropagation(); openEditForm(r) }}><Pencil size={15} /></button>}
                     {receivedCount(r) > 0 && <button className="row-act cs" title="Comparative Statement" onClick={(e) => { e.stopPropagation(); openCs(r.no) }}><Scale size={15} /></button>}
                   </td>
                 </tr>
