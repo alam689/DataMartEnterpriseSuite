@@ -189,6 +189,8 @@ export default function Requisition({ onHome, onBack }) {
   const [mode, setMode] = useState('list') // 'list' | 'form' | 'view'
   const [selected, setSelected] = useState(null)
   const [printMode, setPrintMode] = useState(null) // null | 'single' | 'list'
+  const [confirm, setConfirm] = useState(null) // null | { no, action: 'Approved' | 'Rejected' }
+  const [decisionNote, setDecisionNote] = useState('')
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
 
@@ -228,6 +230,20 @@ export default function Requisition({ onHome, onBack }) {
 
   // ---- actions ----
   const openView = (pr) => { setSelected(pr); setMode('view') }
+  // Approval workflow: change a PR's status and keep the open view in sync.
+  const changeStatus = (no, status, note = '') => {
+    const stamp = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+    const patch = (x) => ({ ...x, status, decisionNote: note || '', decidedOn: status === 'Approved' || status === 'Rejected' ? stamp : '' })
+    setPrs((p) => p.map((x) => (x.no === no ? patch(x) : x)))
+    setSelected((s) => (s && s.no === no ? patch(s) : s))
+  }
+  // Open the confirmation popup before approving/rejecting.
+  const askDecision = (no, action) => { setDecisionNote(''); setConfirm({ no, action }) }
+  const applyDecision = () => {
+    if (!confirm) return
+    changeStatus(confirm.no, confirm.action, decisionNote.trim())
+    setConfirm(null); setDecisionNote('')
+  }
   const openEdit = (pr) => {
     setEditingNo(pr.no)
     setHeader({ date: pr.date, dept: pr.dept, requiredBy: pr.requiredBy, priority: pr.priority, requestedBy: pr.requestedBy, deliverTo: pr.deliverTo })
@@ -289,6 +305,35 @@ export default function Requisition({ onHome, onBack }) {
     </div>
   )
 
+  // ===================== CONFIRM POPUP (approve/reject) =====================
+  const isApprove = confirm?.action === 'Approved'
+  const confirmModal = confirm && (
+    <div className="modal-overlay" onClick={() => setConfirm(null)}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className={`modal-icon tone-${isApprove ? 'green' : 'rose'}`}>
+          {isApprove ? <CheckCircle2 size={26} /> : <XCircle size={26} />}
+        </div>
+        <h3>{isApprove ? 'Approve' : 'Reject'} {confirm.no}?</h3>
+        <p>
+          {isApprove
+            ? 'This will approve the requisition so it can proceed to a purchase order.'
+            : 'This will reject the requisition. The requester will be notified.'}
+        </p>
+        <label className="modal-field">
+          <span>{isApprove ? 'Note (optional)' : 'Reason (optional)'}</span>
+          <textarea value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} rows={3}
+            placeholder={isApprove ? 'Add an approval note…' : 'Add a reason for rejection…'} autoFocus />
+        </label>
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={() => setConfirm(null)}>Cancel</button>
+          <button className={isApprove ? 'btn btn-approve' : 'btn btn-reject solid'} onClick={applyDecision}>
+            {isApprove ? <><CheckCircle2 size={16} /> Approve</> : <><XCircle size={16} /> Reject</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
   // ===================== VIEW: single PR =====================
   if (mode === 'view' && selected) {
     const sm = STATUS_META[selected.status]
@@ -314,9 +359,30 @@ export default function Requisition({ onHome, onBack }) {
           <div className="mh-actions">
             <button className="btn btn-ghost" onClick={() => setMode('list')}>Back</button>
             <button className="btn btn-ghost" onClick={() => openEdit(selected)}><Pencil size={15} /> Edit</button>
-            <button className="btn btn-primary" onClick={() => setPrintMode('single')}><Printer size={16} /> Print Preview</button>
+            <button className="btn btn-ghost" onClick={() => setPrintMode('single')}><Printer size={16} /> Print</button>
+            {selected.status === 'Draft' && (
+              <button className="btn btn-primary" onClick={() => changeStatus(selected.no, 'Pending')}><Send size={16} /> Submit</button>
+            )}
+            {selected.status === 'Pending' && (
+              <>
+                <button className="btn btn-reject" onClick={() => askDecision(selected.no, 'Rejected')}><XCircle size={16} /> Reject</button>
+                <button className="btn btn-approve" onClick={() => askDecision(selected.no, 'Approved')}><CheckCircle2 size={16} /> Approve</button>
+              </>
+            )}
           </div>
         </header>
+
+        {(selected.status === 'Approved' || selected.status === 'Rejected') && (
+          <div className={`decision-banner tone-${STATUS_META[selected.status].tone}`}>
+            <SIcon size={16} />
+            <span>
+              This requisition has been <strong>{selected.status.toLowerCase()}</strong>
+              {selected.decidedOn ? ` on ${selected.decidedOn}` : ''}.
+              {selected.decisionNote ? <em> — “{selected.decisionNote}”</em> : null}
+            </span>
+            <button className="reopen" onClick={() => changeStatus(selected.no, 'Pending')}>Re-open for approval</button>
+          </div>
+        )}
 
         <div className="doc-card">
           <PrDocument pr={selected} />
@@ -324,6 +390,7 @@ export default function Requisition({ onHome, onBack }) {
 
         <footer className="content-foot">Purchase Requisition · {selected.no} · DataMart Enterprise Suite</footer>
         {printOverlay}
+        {confirmModal}
       </div>
     )
   }
@@ -499,6 +566,12 @@ export default function Requisition({ onHome, onBack }) {
                   <td><span className={`pill tone-${PRIORITY_TONE[p.priority]}`}>{p.priority}</span></td>
                   <td><span className={`status tone-${sm.tone}`}><SIcon size={13} /> {p.status}</span></td>
                   <td className="row-actions">
+                    {p.status === 'Pending' && (
+                      <>
+                        <button className="row-act approve" title="Approve" onClick={(e) => { e.stopPropagation(); askDecision(p.no, 'Approved') }}><CheckCircle2 size={16} /></button>
+                        <button className="row-act reject" title="Reject" onClick={(e) => { e.stopPropagation(); askDecision(p.no, 'Rejected') }}><XCircle size={16} /></button>
+                      </>
+                    )}
                     <button className="row-act" title="View" onClick={(e) => { e.stopPropagation(); openView(p) }}><Eye size={16} /></button>
                     <button className="row-act edit" title="Edit" onClick={(e) => { e.stopPropagation(); openEdit(p) }}><Pencil size={15} /></button>
                   </td>
@@ -514,6 +587,7 @@ export default function Requisition({ onHome, onBack }) {
 
       <footer className="content-foot">Purchase Requisition · Procurement · DataMart Enterprise Suite</footer>
       {printOverlay}
+      {confirmModal}
     </div>
   )
 }

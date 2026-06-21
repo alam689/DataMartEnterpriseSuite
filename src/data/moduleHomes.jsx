@@ -177,7 +177,7 @@ export const moduleHomes = {
     ],
     functions: [
       { name: 'Purchase Requisition', desc: 'Raise & approve material requests.', icon: FileText, accent: '#cf8a3c', count: '14 open', screen: 'requisition' },
-      { name: 'Request for Quotation', desc: 'Float enquiries & compare quotes.', icon: FileSearch, accent: '#b574c2', count: '6 active' },
+      { name: 'Request for Quotation', desc: 'Float enquiries & compare quotes.', icon: FileSearch, accent: '#b574c2', count: '6 active', screen: 'rfq' },
       { name: 'Purchase Orders', desc: 'Issue, amend & track orders.', icon: ClipboardList, accent: '#3f8fd1', count: '42 open' },
       { name: 'Goods Receipt (GRN)', desc: 'Receive, inspect & accept goods.', icon: PackageCheck, accent: '#3fae8e', count: '7 pending' },
       { name: 'Purchase Invoices', desc: 'Three-way match & book bills.', icon: ReceiptText, accent: '#d1738f', count: '11 to match' },

@@ -9,6 +9,7 @@ import { moduleHomes } from '../data/moduleHomes.jsx'
 import ModuleHome from './modules/ModuleHome.jsx'
 import CommonApp from './modules/CommonApp.jsx'
 import Requisition from './modules/procurement/Requisition.jsx'
+import Rfq from './modules/procurement/Rfq.jsx'
 import './Home.css'
 
 // Modules rendered via the generic ModuleHome ('common' has its own hub screen).
@@ -136,6 +137,8 @@ export default function Home({ user, onLogout }) {
         <main className="content">
           {active === 'procurement' && sub === 'requisition' ? (
             <Requisition onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'procurement' && sub === 'rfq' ? (
+            <Rfq onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
           ) : active === 'common' ? (
             <CommonApp onHome={() => selectModule('dashboard')} />
           ) : moduleHomeKeys.has(active) ? (
