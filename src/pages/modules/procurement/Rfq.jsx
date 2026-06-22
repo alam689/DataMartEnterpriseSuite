@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import {
   ChevronRight, ArrowLeft, Plus, Search, Trash2, FileText, Save, Send, FileSearch,
-  CheckCircle2, XCircle, FileEdit, Package, Printer, Eye, Database, Building, Scale, Award, ListChecks, X, Pencil,
+  CheckCircle2, XCircle, FileEdit, Package, Printer, Eye, Database, Building, Scale, Award, ListChecks, X, Pencil, ClipboardList,
 } from 'lucide-react'
 import { prSource } from '../../../data/prSource.js'
+import { poStore } from '../../../data/poStore.js'
+import { rfqStore } from '../../../data/rfqStore.js'
 import './Rfq.css'
 
 /*
@@ -28,34 +30,44 @@ const RFQ_META = {
   Quoted: { tone: 'violet', icon: FileSearch },
   Closed: { tone: 'green', icon: CheckCircle2 },
 }
+// Comparative Statement runs a 3-stage flow: Creator submits → Verifier verifies → Approver approves.
 const CS_META = {
   None: { tone: 'slate', label: 'Not started' },
-  Pending: { tone: 'amber', label: 'Pending approval' },
+  Submitted: { tone: 'amber', label: 'Pending verification' },
+  Verified: { tone: 'blue', label: 'Pending approval' },
   Approved: { tone: 'green', label: 'Approved' },
   Rejected: { tone: 'rose', label: 'Rejected' },
+}
+const DEFAULT_CREATOR_REMARK = 'VAT & Tax as applicable. PO to lowest bidder / as per selection.'
+
+// Blank 3-stage CS sign-off block (creator/verifier/approver remarks + who/when).
+const BLANK_CS = {
+  csStatus: 'None', award: [],
+  csCreatorRemark: DEFAULT_CREATOR_REMARK, csVerifierRemark: '', csApproverRemark: '',
+  createdBy: '', createdOn: '', verifiedBy: '', verifiedOn: '', approvedBy: '', approvedOn: '',
 }
 
 const SEED = [
   {
-    no: 'RFQ-0042', date: '2026-06-18', dept: 'Plant Stores', requiredBy: '2026-06-30', status: 'Quoted',
-    remarks: 'For the upcoming production run.', csStatus: 'None', award: [], csDecisionNote: '', csDecidedOn: '',
+    no: 'RFQ-0042', date: '2026-06-18', dept: 'Plant Stores', requiredBy: '2026-06-30', status: 'Quoted', currency: 'BDT',
+    remarks: 'For the upcoming production run.', ...BLANK_CS, createdBy: 'sakhawat@scpl.com', createdOn: '2026-06-16',
     items: [
-      { item: 'Steel Coils', desc: 'CRC grade', uom: 'MT', qty: 12, prNo: 'PR-2025' },
-      { item: 'Welding Rods', desc: '3.2mm', uom: 'Box', qty: 40, prNo: 'PR-2025' },
-      { item: 'Cutting Discs', desc: '4 inch', uom: 'Pcs', qty: 100, prNo: 'PR-2025' },
+      { item: 'Steel Coils', desc: 'CRC grade', uom: 'MT', qty: 12, prNo: 'PR-2025', lastPrice: 3400, lastPriceDate: '2026-05-20' },
+      { item: 'Welding Rods', desc: '3.2mm', uom: 'Box', qty: 40, prNo: 'PR-2025', lastPrice: 125, lastPriceDate: '2026-05-22' },
+      { item: 'Cutting Discs', desc: '4 inch', uom: 'Pcs', qty: 100, prNo: 'PR-2025', lastPrice: 13.5, lastPriceDate: '2026-06-01' },
     ],
     quotes: [
-      { supplier: 'ACME Industrial', received: true, deliveryDays: 10, validityDays: 30, rates: [3500, 120, 14] },
-      { supplier: 'Nexus Components', received: true, deliveryDays: 7, validityDays: 21, rates: [3450, 130, 13] },
-      { supplier: 'Stellar Supplies', received: true, deliveryDays: 14, validityDays: 30, rates: [3600, 115, 15] },
+      { supplier: 'ACME Industrial', received: true, deliveryDays: 10, validityDays: 30, rates: [3500, 120, 14], brands: ['Tata Steel / India', 'Esab / Sweden', 'Bosch / Germany'], specs: ['CRC IS 513 D', 'E6013 3.2mm', 'A24 Inox 4"'], vats: [5, 5, 7.5], lineRemarks: ['Mill test cert included', '', ''] },
+      { supplier: 'Nexus Components', received: true, deliveryDays: 7, validityDays: 21, rates: [3450, 130, 13], brands: ['POSCO / Korea', 'Lincoln / USA', 'Norton / India'], specs: ['CRC SPCC', 'E6013 3.2mm', 'A30 4"'], vats: [5, 5, 7.5], lineRemarks: ['', 'Fastest delivery', ''] },
+      { supplier: 'Stellar Supplies', received: true, deliveryDays: 14, validityDays: 30, rates: [3600, 115, 15], brands: ['JSW / India', 'Kobelco / Japan', 'Makita / Japan'], specs: ['CRC IS 513', 'E7018 3.2mm', 'A36 4"'], vats: [5, 5, 7.5], lineRemarks: ['', '', 'Premium grade'] },
     ],
   },
   {
-    no: 'RFQ-0041', date: '2026-06-17', dept: 'IT', requiredBy: '2026-07-02', status: 'Sent',
-    remarks: 'New joiner workstations.', csStatus: 'None', award: [], csDecisionNote: '', csDecidedOn: '',
+    no: 'RFQ-0041', date: '2026-06-17', dept: 'IT', requiredBy: '2026-07-02', status: 'Sent', currency: 'BDT',
+    remarks: 'New joiner workstations.', ...BLANK_CS,
     items: [
-      { item: 'Workstation PC — i5', desc: '16GB / 512GB', uom: 'Unit', qty: 15, prNo: 'PR-2024' },
-      { item: 'Monitor 24"', desc: 'IPS, FHD', uom: 'Unit', qty: 15, prNo: 'PR-2024' },
+      { item: 'Workstation PC — i5', desc: '16GB / 512GB', uom: 'Unit', qty: 15, prNo: 'PR-2024', lastPrice: 1950, lastPriceDate: '2026-04-30' },
+      { item: 'Monitor 24"', desc: 'IPS, FHD', uom: 'Unit', qty: 15, prNo: 'PR-2024', lastPrice: 195, lastPriceDate: '2026-04-30' },
     ],
     quotes: [
       { supplier: 'Nexus Components', received: true, deliveryDays: 12, validityDays: 30, rates: [1900, 200] },
@@ -63,21 +75,24 @@ const SEED = [
     ],
   },
   {
-    no: 'RFQ-0040', date: '2026-06-16', dept: 'Maintenance', requiredBy: '2026-06-28', status: 'Draft',
-    remarks: '', csStatus: 'None', award: [], csDecisionNote: '', csDecidedOn: '',
+    no: 'RFQ-0040', date: '2026-06-16', dept: 'Maintenance', requiredBy: '2026-06-28', status: 'Draft', currency: 'BDT',
+    remarks: '', ...BLANK_CS,
     items: [
-      { item: 'Bearing 6204', desc: '', uom: 'Pcs', qty: 50, prNo: '' },
-      { item: 'V-Belt A-50', desc: '', uom: 'Pcs', qty: 30, prNo: '' },
+      { item: 'Bearing 6204', desc: '', uom: 'Pcs', qty: 50, prNo: '', lastPrice: 0, lastPriceDate: '' },
+      { item: 'V-Belt A-50', desc: '', uom: 'Pcs', qty: 30, prNo: '', lastPrice: 0, lastPriceDate: '' },
     ],
     quotes: [],
   },
   {
-    no: 'RFQ-0039', date: '2026-06-12', dept: 'Production', requiredBy: '2026-06-22', status: 'Closed',
-    remarks: 'Resin & hardener for Q2.', csStatus: 'Approved', award: ['Orbit Logistics', 'ACME Industrial'],
-    csDecisionNote: 'Split awarded on lowest line price.', csDecidedOn: 'Jun 14, 2026, 10:00 AM',
+    no: 'RFQ-0039', date: '2026-06-12', dept: 'Production', requiredBy: '2026-06-22', status: 'Closed', currency: 'BDT',
+    remarks: 'Resin & hardener for Q2.', ...BLANK_CS,
+    csStatus: 'Approved', award: ['Orbit Logistics', 'ACME Industrial'],
+    csCreatorRemark: 'VAT & Tax as applicable. PO to lowest bidder / as per selection.',
+    csVerifierRemark: 'Rates & specs cross-checked against PR-2022.', csApproverRemark: 'Split awarded on lowest line price.',
+    createdBy: 'sakhawat@scpl.com', createdOn: '2026-06-12', verifiedBy: 'rakib@scpl.com', verifiedOn: '2026-06-13', approvedBy: 'sakhawat@scpl.com', approvedOn: '2026-06-14',
     items: [
-      { item: 'Resin', desc: 'Epoxy', uom: 'Kg', qty: 200, prNo: 'PR-2022' },
-      { item: 'Hardener', desc: '', uom: 'Kg', qty: 80, prNo: 'PR-2022' },
+      { item: 'Resin', desc: 'Epoxy', uom: 'Kg', qty: 200, prNo: 'PR-2022', lastPrice: 218, lastPriceDate: '2026-03-15' },
+      { item: 'Hardener', desc: '', uom: 'Kg', qty: 80, prNo: 'PR-2022', lastPrice: 182, lastPriceDate: '2026-03-15' },
     ],
     quotes: [
       { supplier: 'ACME Industrial', received: true, deliveryDays: 9, validityDays: 30, rates: [220, 180] },
@@ -92,6 +107,86 @@ const lineAmount = (rfq, supplier, i) => {
   const q = rfq.quotes.find((x) => x.supplier === supplier)
   return q ? (Number(q.rates[i]) || 0) * rfq.items[i].qty : 0
 }
+
+// Supplier-provided per-line quote fields (besides price). Stored as parallel arrays on each quote.
+const QFIELDS = [
+  { key: 'brands', placeholder: 'Brand / origin' },
+  { key: 'specs', placeholder: 'Specification' },
+]
+const qv = (q, key, i) => (q && q[key] ? (q[key][i] ?? '') : '')
+const lineVatAmount = (q, it, i) => (Number(q.rates[i]) || 0) * it.qty * (Number(qv(q, 'vats', i)) || 0) / 100
+const supplierVat = (rfq, q) => rfq.items.reduce((s, it, i) => s + lineVatAmount(q, it, i), 0)
+// A fresh quote column with all parallel arrays sized to the item count.
+const emptyQuote = (supplier, n) => ({
+  supplier, received: false, deliveryDays: '', validityDays: '',
+  rates: Array(n).fill(''), brands: Array(n).fill(''), specs: Array(n).fill(''), vats: Array(n).fill(''), lineRemarks: Array(n).fill(''),
+})
+
+// --- Comparative Statement figures ---
+const num = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+// Lowest received rate for an item (0 if none quoted).
+const itemBestRate = (rfq, i) => {
+  const vals = rfq.quotes.filter((q) => q.received && Number(q.rates[i]) > 0).map((q) => Number(q.rates[i]))
+  return vals.length ? Math.min(...vals) : 0
+}
+const bestPriceTotal = (rfq) => rfq.items.reduce((s, it, i) => s + itemBestRate(rfq, i) * it.qty, 0)
+const lastPoTotal = (rfq) => rfq.items.reduce((s, it) => s + (Number(it.lastPrice) || 0) * it.qty, 0)
+const approvedTotal = (rfq) => rfq.items.reduce((s, it, i) => s + (rfq.award?.[i] ? lineAmount(rfq, rfq.award[i], i) : 0), 0)
+const prList = (rfq) => [...new Set(rfq.items.map((it) => it.prNo).filter(Boolean))]
+const awardedCount = (rfq) => rfq.items.filter((_, i) => rfq.award?.[i]).length
+// % change of a rate vs the item's last purchase price (null when no last price).
+const pctVsLast = (rate, lastPrice) => {
+  const lp = Number(lastPrice) || 0
+  if (!lp || !(Number(rate) > 0)) return null
+  return ((Number(rate) - lp) / lp) * 100
+}
+// Deterministic pseudo supplier code (SUP-000xxx) so the CS header reads like the reference.
+const supplierCode = (name) => 'SUP-' + String((([...String(name)].reduce((a, c) => a + c.charCodeAt(0), 0)) % 999) + 1).padStart(6, '0')
+
+// Build supplier-wise Purchase Orders from an approved RFQ's split award.
+// Awarded items are grouped by their awarded supplier → one PO per supplier.
+const buildPosFromRfq = (rfq, startSeq) => {
+  const bySupplier = {}
+  rfq.items.forEach((it, i) => {
+    const sup = rfq.award?.[i]
+    if (!sup) return
+    const q = rfq.quotes.find((x) => x.supplier === sup)
+    if (!q) return
+    const rate = Number(q.rates[i]) || 0
+    const amount = rate * it.qty
+    const vat = Number(qv(q, 'vats', i)) || 0
+    const vatAmount = (amount * vat) / 100
+    ;(bySupplier[sup] = bySupplier[sup] || []).push({
+      item: it.item, desc: it.desc, uom: it.uom, qty: it.qty, prNo: it.prNo || '',
+      brand: qv(q, 'brands', i), spec: qv(q, 'specs', i), rate, amount, vat, vatAmount,
+    })
+  })
+  let seq = startSeq
+  return Object.entries(bySupplier).map(([supplier, lines]) => {
+    const subtotal = lines.reduce((s, l) => s + l.amount, 0)
+    const vatTotal = lines.reduce((s, l) => s + l.vatAmount, 0)
+    return {
+      no: `PO-${String(seq++).padStart(4, '0')}`, rfqNo: rfq.no, supplier, supplierCode: supplierCode(supplier),
+      dept: rfq.dept, date: rfq.approvedOn || TODAY, currency: rfq.currency || 'BDT', status: 'Open',
+      lines, subtotal, vatTotal, total: subtotal + vatTotal,
+    }
+  })
+}
+
+// Initial POs for already-approved seed RFQs (so the register is populated on first load).
+export function buildInitialPos() {
+  let seq = 2419
+  return SEED.filter((r) => r.csStatus === 'Approved').flatMap((r) => {
+    const made = buildPosFromRfq(r, seq)
+    seq += made.length
+    return made
+  })
+}
+// Populate the shared PO store once, at app load, so the register is ready even before any approval.
+poStore.ensureSeeded(buildInitialPos)
+// Seed the RFQ mirror so the PR Status report has data before the RFQ screen is opened.
+rfqStore.ensureSeeded(() => SEED)
+
 // Award split: { supplier: { count, amount, items:[] } } over awarded items.
 const awardSummary = (rfq) => {
   const map = {}
@@ -112,10 +207,12 @@ let itemSeq = 1
 const newItem = () => ({ id: itemSeq++, item: '', desc: '', uom: '', qty: '', prNo: '' })
 
 /* ----------------- Comparison matrix (entry + CS with split award) ----------------- */
-function QuoteMatrix({ rfq, mode, award, onRate, onReceived, onMeta, onAward, onRemoveSupplier }) {
+function QuoteMatrix({ rfq, mode, award, onRate, onReceived, onMeta, onField, onAward, onRemoveSupplier }) {
   const cols = mode === 'cs' ? rfq.quotes.filter((q) => q.received) : rfq.quotes
   const totals = cols.map((q) => supplierTotal(rfq, q))
-  const minTotal = Math.min(...totals.filter((t) => t > 0))
+  const vatTotals = cols.map((q) => supplierVat(rfq, q))
+  const grossTotals = cols.map((q, c) => totals[c] + vatTotals[c])
+  const minGross = Math.min(...grossTotals.filter((t) => t > 0))
   const minRate = rfq.items.map((_, i) => {
     const vals = cols.filter((q) => q.received).map((q) => Number(q.rates[i]) || Infinity)
     return vals.length ? Math.min(...vals) : Infinity
@@ -133,7 +230,7 @@ function QuoteMatrix({ rfq, mode, award, onRate, onReceived, onMeta, onAward, on
                 <div className="cs-sup">
                   <Building size={14} /> {q.supplier}
                   {mode === 'entry' && onRemoveSupplier && (
-                    <button className="cs-sup-del" title="Remove supplier" onClick={() => onRemoveSupplier(c)}><X size={13} /></button>
+                    <button className="cs-sup-del" title={`Remove ${q.supplier}`} aria-label={`Remove ${q.supplier}`} onClick={() => onRemoveSupplier(c)}><X size={16} /></button>
                   )}
                 </div>
                 {mode === 'entry' && (
@@ -156,17 +253,35 @@ function QuoteMatrix({ rfq, mode, award, onRate, onReceived, onMeta, onAward, on
                 {cols.map((q, c) => {
                   const rate = q.rates[i]
                   const amt = (Number(rate) || 0) * it.qty
+                  const vat = qv(q, 'vats', i)
                   const isMin = mode === 'cs' && q.received && Number(rate) === minRate[i] && Number(rate) > 0
                   const isAward = mode === 'cs' && award?.[i] === q.supplier
                   return (
                     <td key={c} className={`${isMin ? 'cs-min' : ''} ${isAward ? 'cs-awarded' : ''}`}>
                       {mode === 'entry' ? (
-                        <input type="number" min="0" step="0.01" value={rate} disabled={!q.received}
-                          onChange={(e) => onRate(c, i, e.target.value)} placeholder="0.00" />
+                        <div className="q-entry">
+                          <input className="q-price" type="number" min="0" step="0.01" value={rate} disabled={!q.received}
+                            onChange={(e) => onRate(c, i, e.target.value)} placeholder="Rate" />
+                          {QFIELDS.map((f) => (
+                            <input key={f.key} className="q-text" value={qv(q, f.key, i)} disabled={!q.received}
+                              onChange={(e) => onField(c, i, f.key, e.target.value)} placeholder={f.placeholder} />
+                          ))}
+                          <div className="q-vat-row">
+                            <input className="q-vat" type="number" min="0" step="0.01" value={vat} disabled={!q.received}
+                              onChange={(e) => onField(c, i, 'vats', e.target.value)} placeholder="VAT %" />
+                            <span className="q-incl">{Number(rate) ? money(amt + (amt * (Number(vat) || 0)) / 100) : ''}</span>
+                          </div>
+                          <input className="q-text" value={qv(q, 'lineRemarks', i)} disabled={!q.received}
+                            onChange={(e) => onField(c, i, 'lineRemarks', e.target.value)} placeholder="Remarks" />
+                        </div>
                       ) : (
                         <div className="cs-cell">
                           <span className="cs-rate">{Number(rate) ? money(rate) : '—'}</span>
                           <span className="cs-amt">{Number(rate) ? money(amt) : ''}</span>
+                          {Number(rate) && Number(vat) ? <span className="cs-vat">+{vat}% VAT</span> : null}
+                          {qv(q, 'brands', i) && <span className="cs-spec">{qv(q, 'brands', i)}</span>}
+                          {qv(q, 'specs', i) && <span className="cs-spec">{qv(q, 'specs', i)}</span>}
+                          {qv(q, 'lineRemarks', i) && <span className="cs-spec rmk">“{qv(q, 'lineRemarks', i)}”</span>}
                           {isAward && <span className="cs-award-tick"><CheckCircle2 size={13} /></span>}
                         </div>
                       )}
@@ -204,14 +319,127 @@ function QuoteMatrix({ rfq, mode, award, onRate, onReceived, onMeta, onAward, on
             ))}
             {mode === 'cs' && <td />}
           </tr>
+          <tr className="cs-meta-row">
+            <td className="cs-itemcol">Subtotal (excl. VAT)</td>
+            {cols.map((q, c) => <td key={c}>{totals[c] > 0 ? money(totals[c]) : '—'}</td>)}
+            {mode === 'cs' && <td />}
+          </tr>
+          <tr className="cs-meta-row">
+            <td className="cs-itemcol">VAT</td>
+            {cols.map((q, c) => <td key={c}>{vatTotals[c] > 0 ? money(vatTotals[c]) : '—'}</td>)}
+            {mode === 'cs' && <td />}
+          </tr>
           <tr className="cs-total-row">
-            <td className="cs-itemcol">Full Basket Total</td>
+            <td className="cs-itemcol">Total incl. VAT</td>
             {cols.map((q, c) => (
-              <td key={c} className={mode === 'cs' && totals[c] === minTotal && totals[c] > 0 ? 'cs-min-total' : ''}>
-                {totals[c] > 0 ? money(totals[c]) : '—'}
+              <td key={c} className={mode === 'cs' && grossTotals[c] === minGross && grossTotals[c] > 0 ? 'cs-min-total' : ''}>
+                {grossTotals[c] > 0 ? money(grossTotals[c]) : '—'}
               </td>
             ))}
             {mode === 'cs' && <td />}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
+}
+
+/* ----------------- Comparative Statement board (reference layout) ----------------- */
+function CsPct({ pct }) {
+  if (pct === null) return null
+  const up = pct > 0
+  const flat = Math.abs(pct) < 0.05
+  return <span className={`csb-pct ${flat ? 'flat' : up ? 'up' : 'down'}`}>{flat ? '■' : up ? '▲' : '▼'} {up && !flat ? '+' : ''}{pct.toFixed(1)}%</span>
+}
+
+function CsTable({ rfq, onPick }) {
+  const cols = rfq.quotes.filter((q) => q.received)
+  const cur = rfq.currency || 'BDT'
+  // Award checkboxes are live only before the CS is verified/approved.
+  const editable = rfq.csStatus === 'None' || rfq.csStatus === 'Rejected' || rfq.csStatus === 'Submitted'
+  const minRate = rfq.items.map((_, i) => itemBestRate(rfq, i))
+  if (!cols.length) return <p className="cs-empty">No received quotations to compare yet.</p>
+
+  return (
+    <div className="csb-wrap">
+      <table className="csb">
+        <thead>
+          <tr className="csb-grouphead">
+            <th className="csb-pr">PR NO</th>
+            <th className="csb-item">ITEM / DESCRIPTION</th>
+            <th className="csb-num">REQ. QTY</th>
+            <th>UOM</th>
+            <th className="csb-last">LAST PRICE</th>
+            <th>CUR.</th>
+            {cols.map((q, c) => (
+              <th key={c} colSpan={3} className="csb-sup">
+                <div className="csb-sup-name">{q.supplier}</div>
+                <div className="csb-sup-code">{supplierCode(q.supplier)}</div>
+              </th>
+            ))}
+            <th className="csb-appr" colSpan={2}>APPROVED</th>
+          </tr>
+          <tr className="csb-subhead">
+            <th colSpan={6} />
+            {cols.map((q, c) => (
+              <Fragment key={c}>
+                <th>DESCRIPTION</th><th className="csb-num">RATE</th><th className="csb-num">TOTAL ✓</th>
+              </Fragment>
+            ))}
+            <th className="csb-num">PRICE</th><th className="csb-num">AMOUNT</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rfq.items.map((it, i) => {
+            const awardSup = rfq.award?.[i] || ''
+            const apprRate = awardSup ? (Number(rfq.quotes.find((q) => q.supplier === awardSup)?.rates[i]) || 0) : 0
+            return (
+              <tr key={i}>
+                <td className="csb-pr">{it.prNo || '—'}</td>
+                <td className="csb-item"><strong>{it.item}</strong><span>{it.desc || it.item}</span></td>
+                <td className="csb-num">{it.qty}</td>
+                <td>{it.uom}</td>
+                <td className="csb-last">
+                  {Number(it.lastPrice) ? <><strong>{num(it.lastPrice)}</strong><span>{it.lastPriceDate}</span></> : '—'}
+                </td>
+                <td className="csb-cur">{cur}</td>
+                {cols.map((q, c) => {
+                  const rate = Number(q.rates[i]) || 0
+                  const total = rate * it.qty
+                  const isMin = rate > 0 && rate === minRate[i]
+                  const isLast = rate > 0 && Number(it.lastPrice) > 0 && rate === Number(it.lastPrice)
+                  const isAward = awardSup === q.supplier
+                  const desc = [qv(q, 'brands', i), qv(q, 'specs', i)].filter(Boolean).join(' · ')
+                  return (
+                    <Fragment key={c}>
+                      <td className="csb-desc">{desc || '—'}</td>
+                      <td className={`csb-num csb-rate ${isMin ? 'is-min' : ''} ${isLast ? 'is-last' : ''}`}>
+                        <strong>{rate ? num(rate) : '—'}</strong>
+                        <CsPct pct={pctVsLast(rate, it.lastPrice)} />
+                      </td>
+                      <td className={`csb-num csb-total ${isAward ? 'is-award' : ''}`}>
+                        <span>{rate ? num(total) : '—'}</span>
+                        <input type="checkbox" checked={isAward} disabled={!editable || !rate}
+                          onChange={() => onPick(i, q.supplier)} title="Award this item to this supplier" />
+                      </td>
+                    </Fragment>
+                  )
+                })}
+                <td className="csb-num csb-appr">{apprRate ? num(apprRate) : '—'}</td>
+                <td className="csb-num csb-appr-amt">{apprRate ? num(apprRate * it.qty) : '—'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="csb-foot">
+            <td colSpan={6}>Quotation Total</td>
+            {cols.map((q, c) => (
+              <Fragment key={c}>
+                <td /><td /><td className="csb-num csb-foot-total">{num(supplierTotal(rfq, q))}</td>
+              </Fragment>
+            ))}
+            <td /><td className="csb-num csb-foot-total">{approvedTotal(rfq) ? num(approvedTotal(rfq)) : '—'}</td>
           </tr>
         </tfoot>
       </table>
@@ -258,34 +486,130 @@ function RfqDocument({ rfq }) {
 
 function CsDocument({ rfq }) {
   const cols = rfq.quotes.filter((q) => q.received)
-  const summary = awardSummary(rfq)
+  const cur = rfq.currency || 'BDT'
+  const minRate = rfq.items.map((_, i) => itemBestRate(rfq, i))
   return (
-    <div className="doc">
+    <div className="doc doc-cs">
       <DocHead title="COMPARATIVE STATEMENT" sub={rfq.no} />
       <div className="doc-meta">
         <div><span>Department</span><strong>{rfq.dept}</strong></div>
         <div><span>Date</span><strong>{rfq.date}</strong></div>
+        <div><span>Currency</span><strong>{cur}</strong></div>
         <div><span>Status</span><strong>{CS_META[rfq.csStatus].label}</strong></div>
       </div>
-      <table className="doc-table">
+      <div className="doc-cs-cards">
+        <div><span>Best-price total</span><strong>{num(bestPriceTotal(rfq))}</strong></div>
+        <div><span>Last-PO total</span><strong>{num(lastPoTotal(rfq))}</strong></div>
+        <div><span>Approved total</span><strong>{num(approvedTotal(rfq))}</strong></div>
+        <div><span>Potential saving</span><strong>{num(Math.max(0, lastPoTotal(rfq) - bestPriceTotal(rfq)))}</strong></div>
+      </div>
+      <table className="doc-table doc-cs-table">
         <thead>
-          <tr><th>Item</th><th className="num">Qty</th>{cols.map((q, c) => <th key={c} className="num">{q.supplier}</th>)}<th>Awarded To</th></tr>
+          <tr>
+            <th>PR No</th><th>Item / Description</th><th className="num">Req. Qty</th><th>UOM</th><th className="num">Last Price</th><th>Cur.</th>
+            {cols.map((q, c) => <th key={c} className="num doc-sup-start" colSpan={3}>{q.supplier}<div className="doc-supcode">{supplierCode(q.supplier)}</div></th>)}
+            <th className="num doc-sup-start" colSpan={2}>Approved</th>
+          </tr>
+          <tr className="doc-cs-sub">
+            <th colSpan={6} />
+            {cols.map((q, c) => <Fragment key={c}><th className="doc-sup-start">Description</th><th className="num">Rate</th><th className="num">Total</th></Fragment>)}
+            <th className="num doc-sup-start">Price</th><th className="num">Amount</th>
+          </tr>
         </thead>
         <tbody>
-          {rfq.items.map((it, i) => (
+          {rfq.items.map((it, i) => {
+            const awardSup = rfq.award?.[i] || ''
+            const apprRate = awardSup ? (Number(rfq.quotes.find((q) => q.supplier === awardSup)?.rates[i]) || 0) : 0
+            return (
+              <tr key={i}>
+                <td>{it.prNo || '—'}</td>
+                <td>{it.item}{it.desc ? <div className="doc-spec">{it.desc}</div> : null}</td>
+                <td className="num">{it.qty}</td><td>{it.uom}</td>
+                <td className="num">{Number(it.lastPrice) ? num(it.lastPrice) : '—'}{it.lastPriceDate ? <div className="doc-spec">{it.lastPriceDate}</div> : null}</td>
+                <td>{cur}</td>
+                {cols.map((q, c) => {
+                  const rate = Number(q.rates[i]) || 0
+                  const isMin = rate > 0 && rate === minRate[i]
+                  const isAward = awardSup === q.supplier
+                  const spec = [qv(q, 'brands', i), qv(q, 'specs', i)].filter(Boolean).join(' · ')
+                  const pct = pctVsLast(rate, it.lastPrice)
+                  return (
+                    <Fragment key={c}>
+                      <td className="doc-desc doc-sup-start">{spec || '—'}</td>
+                      <td className={`num ${isMin ? 'doc-min' : ''}`}>{rate ? num(rate) : '—'}
+                        {pct !== null ? <div className={`doc-pct ${pct > 0 ? 'up' : 'down'}`}>{pct > 0 ? '▲ +' : '▼ '}{pct.toFixed(1)}%</div> : null}</td>
+                      <td className={`num ${isAward ? 'doc-award' : ''}`}>{rate ? num(rate * it.qty) : '—'}{isAward ? ' ✓' : ''}</td>
+                    </Fragment>
+                  )
+                })}
+                <td className="num doc-sup-start">{apprRate ? num(apprRate) : '—'}</td>
+                <td className="num strong">{apprRate ? num(apprRate * it.qty) : '—'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={6} className="strong">Quotation Total</td>
+            {cols.map((q, c) => <Fragment key={c}><td className="doc-sup-start" /><td /><td className="num strong">{num(supplierTotal(rfq, q))}</td></Fragment>)}
+            <td className="doc-sup-start" /><td className="num strong">{approvedTotal(rfq) ? num(approvedTotal(rfq)) : '—'}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div className="doc-cs-rem">
+        <div><span>Remarks (Creator)</span><p>{rfq.csCreatorRemark || '—'}</p><em>{rfq.createdBy || '—'}{rfq.createdOn ? ` · ${rfq.createdOn}` : ''}</em></div>
+        <div><span>Remarks (Verifier)</span><p>{rfq.csVerifierRemark || '—'}</p><em>{rfq.verifiedBy || '—'}{rfq.verifiedOn ? ` · ${rfq.verifiedOn}` : ''}</em></div>
+        <div><span>Remarks (Approver)</span><p>{rfq.csApproverRemark || '—'}</p><em>{rfq.approvedBy || '—'}{rfq.approvedOn ? ` · ${rfq.approvedOn}` : ''}</em></div>
+      </div>
+      <div className="doc-sign">
+        <div><span className="sig-line" />Prepared By</div>
+        <div><span className="sig-line" />Verified By</div>
+        <div><span className="sig-line" />Approved By</div>
+      </div>
+      <div className="doc-printed">DataMart Enterprise Suite</div>
+    </div>
+  )
+}
+
+export function PoDocument({ po }) {
+  return (
+    <div className="doc">
+      <DocHead title="PURCHASE ORDER" sub={po.no} />
+      <div className="doc-meta">
+        <div><span>Supplier</span><strong>{po.supplier}</strong></div>
+        <div><span>Against RFQ</span><strong>{po.rfqNo}</strong></div>
+        <div><span>Date</span><strong>{po.date}</strong></div>
+        <div><span>Department</span><strong>{po.dept}</strong></div>
+        <div><span>Currency</span><strong>{po.currency}</strong></div>
+        <div><span>Supplier Code</span><strong>{po.supplierCode}</strong></div>
+      </div>
+      <p className="doc-note">Please supply the following items as per our approved comparative statement and agreed terms.</p>
+      <table className="doc-table">
+        <thead>
+          <tr><th>#</th><th>Item / Description</th><th>Ref PR</th><th className="num">Qty</th><th>UOM</th><th className="num">Rate</th><th className="num">VAT %</th><th className="num">Amount</th></tr>
+        </thead>
+        <tbody>
+          {po.lines.map((l, i) => (
             <tr key={i}>
-              <td>{it.item}</td><td className="num">{it.qty} {it.uom}</td>
-              {cols.map((q, c) => <td key={c} className={`num ${rfq.award?.[i] === q.supplier ? 'doc-min' : ''}`}>{Number(q.rates[i]) ? money((Number(q.rates[i]) || 0) * it.qty) : '—'}</td>)}
-              <td className="strong">{rfq.award?.[i] || '—'}</td>
+              <td>{i + 1}</td>
+              <td>{l.item}{[l.brand, l.spec, l.desc].filter(Boolean).length ? <div className="doc-spec">{[l.brand, l.spec, l.desc].filter(Boolean).join(' · ')}</div> : null}</td>
+              <td>{l.prNo || '—'}</td>
+              <td className="num">{l.qty}</td><td>{l.uom}</td>
+              <td className="num">{num(l.rate)}</td><td className="num">{l.vat ? l.vat + '%' : '—'}</td>
+              <td className="num">{num(l.amount)}</td>
             </tr>
           ))}
         </tbody>
+        <tfoot>
+          <tr><td colSpan={7} className="num strong">Subtotal</td><td className="num strong">{num(po.subtotal)}</td></tr>
+          <tr><td colSpan={7} className="num">VAT</td><td className="num">{num(po.vatTotal)}</td></tr>
+          <tr><td colSpan={7} className="num strong">Total ({po.currency})</td><td className="num strong">{num(po.total)}</td></tr>
+        </tfoot>
       </table>
-      <div className="doc-remarks"><span>Award Summary:</span> {Object.entries(summary).map(([s, v]) => `${s} — ${v.count} item(s), ${money(v.amount)}`).join('  ·  ') || '—'}; Total {money(awardGrand(rfq))}{rfq.csDecisionNote ? `. ${rfq.csDecisionNote}` : ''}</div>
       <div className="doc-sign">
         <div><span className="sig-line" />Prepared By</div>
-        <div><span className="sig-line" />Checked By</div>
-        <div><span className="sig-line" />Approved By</div>
+        <div><span className="sig-line" />Authorised By</div>
+        <div><span className="sig-line" />Supplier Acceptance</div>
       </div>
       <div className="doc-printed">DataMart Enterprise Suite</div>
     </div>
@@ -310,12 +634,17 @@ function RfqListDocument({ items, filterLabel }) {
   )
 }
 
-export default function Rfq({ onHome, onBack }) {
+export default function Rfq({ onHome, onBack, user }) {
+  const ME = user?.email || 'user@datamart.com'
   const [rfqs, setRfqs] = useState(SEED)
+  useEffect(() => { rfqStore.set(rfqs) }, [rfqs]) // mirror live RFQs for the PR Status report
+  const pos = useSyncExternalStore(poStore.subscribe, poStore.getAll) // shared with the PO Register
+  const [poPrint, setPoPrint] = useState(null) // PO currently in print preview
   const [mode, setMode] = useState('list')
   const [selectedNo, setSelectedNo] = useState(null)
   const [printMode, setPrintMode] = useState(null)
   const [confirm, setConfirm] = useState(null)
+  const [supDel, setSupDel] = useState(null) // { idx, name } pending supplier removal
   const [decisionNote, setDecisionNote] = useState('')
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -324,6 +653,8 @@ export default function Rfq({ onHome, onBack }) {
   const [header, setHeader] = useState({ date: TODAY, dept: '', requiredBy: '' })
   const [items, setItems] = useState([newItem()])
   const [supSel, setSupSel] = useState([])
+  const [customSups, setCustomSups] = useState([]) // ad-hoc suppliers added on the form (persist as chips even when unticked)
+  const [supNewName, setSupNewName] = useState('') // ad-hoc supplier added on the form
   const [remarks, setRemarks] = useState('')
   const [touched, setTouched] = useState(false)
   const [editingNo, setEditingNo] = useState(null) // null = creating new
@@ -362,6 +693,16 @@ export default function Rfq({ onHome, onBack }) {
   const updateRfq = (no, updater) => setRfqs((p) => p.map((r) => (r.no === no ? updater(r) : r)))
   const setRate = (no, c, i, val) => updateRfq(no, (r) => ({ ...r, quotes: r.quotes.map((q, qi) => (qi === c ? { ...q, rates: q.rates.map((x, xi) => (xi === i ? val : x)) } : q)) }))
   const setMeta = (no, c, field, val) => updateRfq(no, (r) => ({ ...r, quotes: r.quotes.map((q, qi) => (qi === c ? { ...q, [field]: val } : q)) }))
+  // Per-line supplier field (brand/origin, specification, VAT%, remarks) — stored as a parallel array sized to the items.
+  const setQuoteField = (no, c, i, key, val) => updateRfq(no, (r) => ({
+    ...r,
+    quotes: r.quotes.map((q, qi) => {
+      if (qi !== c) return q
+      const arr = r.items.map((_, xi) => (q[key]?.[xi] ?? ''))
+      arr[i] = val
+      return { ...q, [key]: arr }
+    }),
+  }))
   const toggleReceived = (no, c) => updateRfq(no, (r) => {
     const quotes = r.quotes.map((q, qi) => (qi === c ? { ...q, received: !q.received } : q))
     const status = quotes.some((q) => q.received) ? (r.status === 'Closed' ? 'Closed' : 'Quoted') : r.status
@@ -372,10 +713,16 @@ export default function Rfq({ onHome, onBack }) {
     base[i] = sup
     return { ...r, award: base }
   })
+  // Award via the per-supplier checkbox: ticking awards that item to the supplier; ticking it again clears it.
+  const toggleAwardPick = (no, i, sup) => updateRfq(no, (r) => {
+    const base = r.award && r.award.length === r.items.length ? [...r.award] : r.items.map(() => '')
+    base[i] = base[i] === sup ? '' : sup
+    return { ...r, award: base }
+  })
   // Invite more suppliers to an existing RFQ (new quote columns).
   const addSuppliers = (no, names) => updateRfq(no, (r) => ({
     ...r,
-    quotes: [...r.quotes, ...names.map((s) => ({ supplier: s, received: false, deliveryDays: '', validityDays: '', rates: r.items.map(() => '') }))],
+    quotes: [...r.quotes, ...names.map((s) => emptyQuote(s, r.items.length))],
   }))
   const removeSupplier = (no, idx) => updateRfq(no, (r) => {
     const removed = r.quotes[idx]?.supplier
@@ -414,13 +761,30 @@ export default function Rfq({ onHome, onBack }) {
   const removeItem = (id) => setItems((l) => (l.length > 1 ? l.filter((x) => x.id !== id) : l))
   const updateItem = (id, f, v) => setItems((l) => l.map((x) => (x.id === id ? { ...x, [f]: v } : x)))
   const toggleSup = (name) => setSupSel((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name]))
-  const resetForm = () => { setHeader({ date: TODAY, dept: '', requiredBy: '' }); setItems([newItem()]); setSupSel([]); setRemarks(''); setTouched(false); setEditingNo(null) }
+  // Invite a supplier that isn't in the master list — it becomes a persistent chip and is selected.
+  const addNewSupplier = () => {
+    const name = supNewName.trim()
+    if (!name) { setSupNewName(''); return }
+    const known = [...SUPPLIERS, ...customSups].find((x) => x.toLowerCase() === name.toLowerCase())
+    const final = known || name
+    if (!known) setCustomSups((c) => [...c, name])
+    setSupSel((s) => (s.includes(final) ? s : [...s, final]))
+    setSupNewName('')
+  }
+  // Remove an ad-hoc supplier chip entirely (master suppliers are kept — just untick them).
+  const removeCustomSupplier = (name) => {
+    setCustomSups((c) => c.filter((x) => x !== name))
+    setSupSel((s) => s.filter((x) => x !== name))
+  }
+  const resetForm = () => { setHeader({ date: TODAY, dept: '', requiredBy: '' }); setItems([newItem()]); setSupSel([]); setCustomSups([]); setSupNewName(''); setRemarks(''); setTouched(false); setEditingNo(null) }
   const openForm = () => { resetForm(); setMode('form') }
   const openEditForm = (rfq) => {
     setEditingNo(rfq.no)
     setHeader({ date: rfq.date, dept: rfq.dept, requiredBy: rfq.requiredBy })
     setItems(rfq.items.map((it) => ({ ...newItem(), item: it.item, desc: it.desc, uom: it.uom, qty: String(it.qty), prNo: it.prNo || '' })))
     setSupSel(rfq.quotes.map((q) => q.supplier))
+    setCustomSups(rfq.quotes.map((q) => q.supplier).filter((s) => !SUPPLIERS.includes(s)))
+    setSupNewName('')
     setRemarks(rfq.remarks || '')
     setTouched(false)
     setMode('form')
@@ -454,50 +818,59 @@ export default function Rfq({ onHome, onBack }) {
   const commitRfq = (status) => {
     setTouched(true)
     if (status === 'Sent' && !canSend) return
-    const newItems = validItems.map((l) => ({ item: l.item, desc: l.desc, uom: l.uom, qty: Number(l.qty) || 0, prNo: l.prNo || '' }))
+    const newItems = validItems.map((l) => ({ item: l.item, desc: l.desc, uom: l.uom, qty: Number(l.qty) || 0, prNo: l.prNo || '', lastPrice: Number(l.lastPrice) || 0, lastPriceDate: l.lastPriceDate || '' }))
 
     if (editingNo) {
       updateRfq(editingNo, (r) => {
         // Rebuild quotes for the chosen suppliers, preserving entered data per item.
         const quotes = supSel.map((s) => {
           const ex = r.quotes.find((q) => q.supplier === s)
-          const rates = newItems.map((ni) => {
-            if (!ex) return ''
+          if (!ex) return emptyQuote(s, newItems.length)
+          // Preserve each parallel array by matching the (possibly reordered) item.
+          const remap = (key) => newItems.map((ni) => {
             const oi = r.items.findIndex((it) => itemKey(it) === itemKey(ni))
-            return oi >= 0 ? ex.rates[oi] : ''
+            return oi >= 0 ? (ex[key]?.[oi] ?? '') : ''
           })
-          return ex
-            ? { ...ex, rates }
-            : { supplier: s, received: false, deliveryDays: '', validityDays: '', rates: newItems.map(() => '') }
+          return { ...ex, rates: remap('rates'), brands: remap('brands'), specs: remap('specs'), vats: remap('vats'), lineRemarks: remap('lineRemarks') }
         })
         const anyRecv = quotes.some((q) => q.received)
         const finalStatus = anyRecv ? 'Quoted' : (status === 'Draft' ? 'Draft' : 'Sent')
         // Editing changes the basis, so any existing comparative statement is reset.
-        return { ...r, ...header, items: newItems, remarks, quotes, status: finalStatus, csStatus: 'None', award: [], csDecisionNote: '', csDecidedOn: '' }
+        return { ...r, ...header, items: newItems, remarks, quotes, status: finalStatus, ...BLANK_CS }
       })
       closeForm(); return
     }
 
     const record = {
-      ...header, no: nextNo, status, remarks, csStatus: 'None', award: [], csDecisionNote: '', csDecidedOn: '',
+      ...header, no: nextNo, status, remarks, currency: 'BDT', ...BLANK_CS,
       items: newItems,
-      quotes: supSel.map((s) => ({ supplier: s, received: false, deliveryDays: '', validityDays: '', rates: newItems.map(() => '') })),
+      quotes: supSel.map((s) => emptyQuote(s, newItems.length)),
     }
     setRfqs((p) => [record, ...p]); closeForm()
   }
 
-  // CS approval
-  const submitCs = (no) => updateRfq(no, (r) => ({ ...r, csStatus: 'Pending' }))
-  const askDecision = (no, action) => { setDecisionNote(''); setConfirm({ no, action }) }
-  const applyDecision = () => {
-    if (!confirm) return
-    const stamp = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-    updateRfq(confirm.no, (r) => ({
-      ...r, csStatus: confirm.action, csDecisionNote: decisionNote.trim(), csDecidedOn: stamp,
-      status: confirm.action === 'Approved' ? 'Closed' : r.status,
-    }))
-    setConfirm(null); setDecisionNote('')
+  // --- CS 3-stage workflow: Creator submits → Verifier verifies → Approver approves ---
+  const csStamp = () => new Date().toISOString().slice(0, 10)
+  const setCsRemark = (no, field, val) => updateRfq(no, (r) => ({ ...r, [field]: val }))
+  const submitForVerification = (no) => updateRfq(no, (r) => ({
+    ...r, csStatus: 'Submitted', createdBy: r.createdBy || ME, createdOn: r.createdOn || csStamp(),
+  }))
+  const verifyCs = (no) => updateRfq(no, (r) => ({ ...r, csStatus: 'Verified', verifiedBy: ME, verifiedOn: csStamp() }))
+  const approveCs = (no) => {
+    updateRfq(no, (r) => ({ ...r, csStatus: 'Approved', approvedBy: ME, approvedOn: csStamp(), status: 'Closed' }))
+    // Auto-create supplier-wise Purchase Orders from the approved split award.
+    const rfq = rfqs.find((r) => r.no === no)
+    if (!rfq) return
+    poStore.replaceForRfq(no, (startSeq) => buildPosFromRfq(rfq, startSeq))
   }
+  const rejectCs = (no, stage) => updateRfq(no, (r) => ({
+    ...r, csStatus: 'Rejected',
+    ...(stage === 'verify' ? { verifiedBy: ME, verifiedOn: csStamp() } : { approvedBy: ME, approvedOn: csStamp() }),
+  }))
+  const reopenCs = (no) => updateRfq(no, (r) => ({
+    ...r, csStatus: 'Submitted', status: r.status === 'Closed' ? 'Quoted' : r.status,
+    verifiedBy: '', verifiedOn: '', approvedBy: '', approvedOn: '',
+  }))
 
   const filterLabel = `${statusFilter}${query ? ` · "${query}"` : ''}`
 
@@ -512,11 +885,26 @@ export default function Rfq({ onHome, onBack }) {
         </div>
       </div>
       <div className="print-scroll">
-        <div className="print-sheet">
+        <div className={`print-sheet ${printMode === 'cs' ? 'print-sheet-cs' : ''}`}>
           {printMode === 'rfq' && current && <RfqDocument rfq={current} />}
           {printMode === 'cs' && current && <CsDocument rfq={current} />}
           {printMode === 'list' && <RfqListDocument items={filtered} filterLabel={filterLabel} />}
         </div>
+      </div>
+    </div>
+  )
+
+  const poPrintOverlay = poPrint && (
+    <div className="print-overlay">
+      <div className="print-bar no-print">
+        <span><Printer size={16} /> Print Preview — Purchase Order {poPrint.no} · {poPrint.supplier}</span>
+        <div className="print-bar-actions">
+          <button className="btn btn-ghost" onClick={() => setPoPrint(null)}>Close</button>
+          <button className="btn btn-primary" onClick={() => window.print()}><Printer size={16} /> Print</button>
+        </div>
+      </div>
+      <div className="print-scroll">
+        <div className="print-sheet"><PoDocument po={poPrint} /></div>
       </div>
     </div>
   )
@@ -536,6 +924,26 @@ export default function Rfq({ onHome, onBack }) {
           <button className={isApprove ? 'btn btn-approve' : 'btn btn-reject solid'} onClick={applyDecision}>
             {isApprove ? <><CheckCircle2 size={16} /> Approve</> : <><XCircle size={16} /> Reject</>}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // Remove-supplier confirmation (Record Quotations)
+  const confirmRemoveSupplier = () => {
+    if (!current || !supDel) return
+    removeSupplier(current.no, supDel.idx)
+    setSupDel(null)
+  }
+  const supDelModal = supDel && current && (
+    <div className="modal-overlay" onClick={() => setSupDel(null)}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-icon tone-rose"><Trash2 size={24} /></div>
+        <h3>Remove {supDel.name}?</h3>
+        <p>This removes <strong>{supDel.name}</strong> and any quotes recorded for them from {current.no}. If they were awarded an item, that award is cleared. This can’t be undone.</p>
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={() => setSupDel(null)}>Cancel</button>
+          <button className="btn btn-reject solid" onClick={confirmRemoveSupplier} autoFocus><Trash2 size={16} /> Remove supplier</button>
         </div>
       </div>
     </div>
@@ -632,6 +1040,62 @@ export default function Rfq({ onHome, onBack }) {
     </div>
   )
 
+  // Add-supplier modal for the NEW/EDIT form — same UX as the view modal, commits to supSel/customSups.
+  const formSupRemaining = SUPPLIERS.filter((s) => !supSel.includes(s))
+  const formSupFiltered = formSupRemaining.filter((s) => !sq || s.toLowerCase().includes(sq))
+  const confirmFormSupAdd = () => {
+    const raw = [...supAddSel, ...(supAddNew.trim() ? [supAddNew.trim()] : [])]
+    const existing = [...SUPPLIERS, ...customSups]
+    const newCustom = []
+    const toSelect = []
+    raw.forEach((name) => {
+      const match = existing.concat(newCustom).find((x) => x.toLowerCase() === name.toLowerCase())
+      const final = match || name
+      if (!match) newCustom.push(final)
+      if (!toSelect.includes(final)) toSelect.push(final)
+    })
+    if (newCustom.length) setCustomSups((c) => [...c, ...newCustom.filter((n) => !c.includes(n))])
+    setSupSel((s) => [...s, ...toSelect.filter((n) => !s.includes(n))])
+    closeSupAdd()
+  }
+  const formSupAddModal = mode === 'form' && supAddOpen && (
+    <div className="modal-overlay" onClick={closeSupAdd}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-icon tone-blue"><Building size={24} /></div>
+        <h3>Add Supplier to {formNo}</h3>
+        <p>Invite suppliers to quote on this RFQ.</p>
+        {formSupRemaining.length > 0 ? (
+          <>
+            <div className="pr-search">
+              <Search size={16} />
+              <input value={supAddQuery} onChange={(e) => setSupAddQuery(e.target.value)} placeholder="Search suppliers…" autoFocus />
+              {supAddQuery && <button className="pr-search-clear" onClick={() => setSupAddQuery('')}><X size={15} /></button>}
+            </div>
+            <div className="sup-add-list">
+              {formSupFiltered.map((s) => (
+                <label key={s} className={`sup-add-row ${supAddSel.includes(s) ? 'on' : ''}`}>
+                  <input type="checkbox" checked={supAddSel.includes(s)} onChange={() => toggleSupAdd(s)} />
+                  <Building size={15} /> {s}
+                </label>
+              ))}
+              {formSupFiltered.length === 0 && <p className="pr-pick-empty">No suppliers match “{supAddQuery}”.</p>}
+            </div>
+          </>
+        ) : (
+          <p className="sup-add-none">All master suppliers are already invited. Add a new one below.</p>
+        )}
+        <label className="modal-field"><span>Or add a new supplier</span>
+          <input value={supAddNew} onChange={(e) => setSupAddNew(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmFormSupAdd() } }} placeholder="New supplier name…" />
+        </label>
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={closeSupAdd}>Cancel</button>
+          <button className="btn btn-primary" onClick={confirmFormSupAdd} disabled={!supAddSel.length && !supAddNew.trim()}><Plus size={16} /> Add</button>
+        </div>
+      </div>
+    </div>
+  )
+
   const crumbBar = (extra) => (
     <nav className="crumbs">
       <button onClick={onHome}>Dashboard</button><ChevronRight size={14} />
@@ -643,70 +1107,127 @@ export default function Rfq({ onHome, onBack }) {
   // ===================== CS =====================
   if (mode === 'cs' && current) {
     const cs = CS_META[current.csStatus]
-    const summary = awardSummary(current)
+    const cur = current.currency || 'BDT'
+    const st = current.csStatus
     const canSubmit = receivedCount(current) > 0 && allAwarded(current)
+    const best = bestPriceTotal(current)
+    const lastPo = lastPoTotal(current)
+    const approved = approvedTotal(current)
+    const saving = Math.max(0, lastPo - best)
+    const creatorEditable = st === 'None' || st === 'Rejected'
+    const who = (email) => <div className="cs-who"><span className="cs-av">{String(email).slice(0, 2).toUpperCase()}</span>{email}</div>
     return (
-      <div className="req fade-in">
+      <div className="req fade-in cs-board">
         {crumbBar(<><button onClick={() => setMode('list')}>RFQ</button><ChevronRight size={14} /><button onClick={() => openView(current.no)}>{current.no}</button><ChevronRight size={14} /><span>Comparative Statement</span></>)}
-        <header className="req-head">
+
+        <header className="req-head cs-head">
           <div className="req-title">
             <button className="back-btn" onClick={() => openView(current.no)}><ArrowLeft size={18} /></button>
             <span className="req-mark"><Scale size={22} /></span>
             <div>
-              <h1>Comparative Statement <span className="pr-no">{current.no}</span></h1>
-              <p>{current.dept} · {receivedCount(current)} of {current.quotes.length} quotes received</p>
+              <h1>Quotation No. <span className="pr-no">{current.no}</span> <span className={`status tone-${cs.tone}`}>{cs.label}</span></h1>
+              <p>{current.items.length} item lines · {receivedCount(current)} suppliers · {prList(current).length} PR · {awardedCount(current)} awarded · currency {cur}</p>
             </div>
+          </div>
+          <div className="cs-cards">
+            <div className="cs-card tone-green"><strong>{num(best)}</strong><span>Best-price total</span></div>
+            <div className="cs-card tone-amber"><strong>{num(lastPo)}</strong><span>Last-PO total</span></div>
+            <div className="cs-card tone-blue"><strong>{num(approved)}</strong><span>Approved total</span></div>
+            <div className="cs-card tone-teal"><strong>{num(saving)}</strong><span>Potential saving</span></div>
+          </div>
+        </header>
+
+        <div className="cs-actions-bar">
+          <div className="cs-legend">
+            <span className="lg lg-min">Lowest price</span>
+            <span className="lg lg-award">Selected / Approved</span>
+            <span className="lg lg-last">Last PO</span>
           </div>
           <div className="mh-actions">
             <button className="btn btn-ghost" onClick={() => openView(current.no)}>Back</button>
             <button className="btn btn-ghost" onClick={() => setPrintMode('cs')}><Printer size={16} /> Print</button>
-            {(current.csStatus === 'None' || current.csStatus === 'Rejected') && (
-              <button className="btn btn-primary" onClick={() => submitCs(current.no)} disabled={!canSubmit}><Send size={16} /> Submit for Approval</button>
-            )}
-            {current.csStatus === 'Pending' && (
-              <>
-                <button className="btn btn-reject" onClick={() => askDecision(current.no, 'Rejected')}><XCircle size={16} /> Reject</button>
-                <button className="btn btn-approve" onClick={() => askDecision(current.no, 'Approved')}><CheckCircle2 size={16} /> Approve</button>
-              </>
+            {(st === 'Approved' || st === 'Rejected') && (
+              <button className="btn btn-ghost" onClick={() => reopenCs(current.no)}>Re-open</button>
             )}
           </div>
-        </header>
-
-        <div className={`cs-status-banner tone-${cs.tone}`}>
-          <span>Status: <strong>{cs.label}</strong></span>
-          {current.csDecidedOn && <span className="cs-decided">{current.csDecidedOn}{current.csDecisionNote ? ` — “${current.csDecisionNote}”` : ''}</span>}
-          {(current.csStatus === 'Approved' || current.csStatus === 'Rejected') && (
-            <button className="reopen" onClick={() => updateRfq(current.no, (r) => ({ ...r, csStatus: 'Pending', status: 'Quoted' }))}>Re-open</button>
-          )}
         </div>
 
         <section className="panel">
-          <div className="panel-head"><h2><Scale size={16} /> Supplier Comparison &amp; Award</h2></div>
+          <div className="panel-head"><h2><Scale size={16} /> Comparative Statement (CS)</h2>{!allAwarded(current) && <em className="req-em">— tick a supplier per row to award</em>}</div>
           <div className="cs-pad">
-            <QuoteMatrix rfq={current} mode="cs" award={current.award} onAward={(i, s) => setAward(current.no, i, s)} />
-            <p className="cs-hint">Lowest rate per item is highlighted. Use <strong>Award to</strong> on each row to split items across suppliers — different items can go to different suppliers.</p>
+            <CsTable rfq={current} onPick={(i, s) => toggleAwardPick(current.no, i, s)} />
+            <p className="cs-hint">Lowest rate per item is highlighted green; tick the box in a supplier’s <strong>TOTAL</strong> column to award that item. % shown on each rate is vs. the item’s last purchase price.</p>
           </div>
         </section>
 
         <section className="panel">
-          <div className="panel-head"><h2><Award size={16} /> Award Summary</h2>{!allAwarded(current) && <em className="req-em">— award every item to submit</em>}</div>
-          <div className="award-summary">
-            {Object.keys(summary).length === 0 && <p className="cs-empty">No items awarded yet.</p>}
-            {Object.entries(summary).map(([sup, v]) => (
-              <div className="award-card" key={sup}>
-                <div className="aw-top"><Building size={16} /><strong>{sup}</strong></div>
-                <div className="aw-items">{v.items.join(', ')}</div>
-                <div className="aw-foot"><span>{v.count} item{v.count === 1 ? '' : 's'}</span><strong>{money(v.amount)}</strong></div>
+          <div className="cs-remarks">
+            <div className="cs-rem">
+              <div className="cs-rem-h">Remarks (Creator)</div>
+              <textarea value={current.csCreatorRemark} disabled={!creatorEditable}
+                onChange={(e) => setCsRemark(current.no, 'csCreatorRemark', e.target.value)} rows={2} placeholder="Creator note…" />
+              <div className="cs-rem-f">
+                <div className="cs-rem-by"><span>Created By</span>{who(current.createdBy || ME)}<em>{current.createdOn || '—'}</em></div>
+                {(st === 'None' || st === 'Rejected') && (
+                  <button className="btn btn-primary sm" onClick={() => submitForVerification(current.no)} disabled={!canSubmit}><Send size={15} /> Submit for Verification</button>
+                )}
               </div>
-            ))}
-            {Object.keys(summary).length > 0 && (
-              <div className="award-grand"><span>Total Award Value</span><strong>{money(awardGrand(current))}</strong></div>
-            )}
+            </div>
+
+            <div className="cs-rem">
+              <div className="cs-rem-h">Remarks (Verifier)</div>
+              <textarea value={current.csVerifierRemark} disabled={st !== 'Submitted'}
+                onChange={(e) => setCsRemark(current.no, 'csVerifierRemark', e.target.value)} rows={2} placeholder={st === 'Submitted' ? 'Verifier note…' : 'Pending verification.'} />
+              <div className="cs-rem-f">
+                <div className="cs-rem-by"><span>Verified By</span>{current.verifiedBy ? who(current.verifiedBy) : <em>—</em>}{current.verifiedOn && <em>{current.verifiedOn}</em>}</div>
+                {st === 'Submitted' && (
+                  <div className="cs-rem-btns">
+                    <button className="btn btn-reject sm" onClick={() => rejectCs(current.no, 'verify')}><XCircle size={15} /> Reject</button>
+                    <button className="btn btn-approve sm" onClick={() => verifyCs(current.no)}><CheckCircle2 size={15} /> Verify</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="cs-rem">
+              <div className="cs-rem-h">Remarks (Approver)</div>
+              <textarea value={current.csApproverRemark} disabled={st !== 'Verified'}
+                onChange={(e) => setCsRemark(current.no, 'csApproverRemark', e.target.value)} rows={2} placeholder={st === 'Verified' ? 'Approver note…' : 'Awaiting award selection.'} />
+              <div className="cs-rem-f">
+                <div className="cs-rem-by"><span>Approved By</span>{current.approvedBy ? who(current.approvedBy) : <em>—</em>}{current.approvedOn && <em>{current.approvedOn}</em>}</div>
+                {st === 'Verified' && (
+                  <div className="cs-rem-btns">
+                    <button className="btn btn-reject sm" onClick={() => rejectCs(current.no, 'approve')}><XCircle size={15} /> Reject</button>
+                    <button className="btn btn-approve sm" onClick={() => approveCs(current.no)}><CheckCircle2 size={15} /> Approve</button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </section>
 
+        {st === 'Approved' && (() => {
+          const myPos = pos.filter((p) => p.rfqNo === current.no)
+          return (
+            <section className="panel po-panel">
+              <div className="panel-head"><h2><ClipboardList size={16} /> Purchase Orders <span className="po-auto">auto-created on approval — one per supplier</span></h2></div>
+              <div className="po-pad">
+                {myPos.length === 0
+                  ? <p className="cs-empty">No awarded suppliers — nothing to order.</p>
+                  : myPos.map((po) => (
+                    <div className="po-row" key={po.no}>
+                      <div className="po-id"><span className="po-no">{po.no}</span><span className="po-sup"><Building size={14} /> {po.supplier}</span></div>
+                      <div className="po-meta"><span>{po.lines.length} item{po.lines.length === 1 ? '' : 's'}</span><strong>{num(po.total)} {po.currency}</strong></div>
+                      <button className="btn btn-ghost sm" onClick={() => setPoPrint(po)}><Printer size={15} /> Print PO</button>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          )
+        })()}
+
         <footer className="content-foot">Comparative Statement · {current.no} · DataMart Enterprise Suite</footer>
-        {printOverlay}{confirmModal}
+        {printOverlay}{poPrintOverlay}{confirmModal}
       </div>
     )
   }
@@ -716,6 +1237,8 @@ export default function Rfq({ onHome, onBack }) {
     const sm = RFQ_META[current.status]
     const SIcon = sm.icon
     const recd = receivedCount(current)
+    // Suppliers can be invited / removed right up until the comparative statement is approved.
+    const csApproved = current.csStatus === 'Approved'
     return (
       <div className="req fade-in">
         {crumbBar(<><button onClick={() => setMode('list')}>RFQ</button><ChevronRight size={14} /><span>{current.no}</span></>)}
@@ -759,7 +1282,7 @@ export default function Rfq({ onHome, onBack }) {
         <section className="panel">
           <div className="panel-head">
             <h2><FileSearch size={16} /> Record Quotations</h2>
-            <button className="btn btn-ghost sm" onClick={openSupAdd}><Plus size={15} /> Add Supplier</button>
+            {!csApproved && <button className="btn btn-ghost sm" onClick={openSupAdd}><Plus size={15} /> Add Supplier</button>}
           </div>
           <div className="cs-pad">
             {current.quotes.length === 0
@@ -768,13 +1291,16 @@ export default function Rfq({ onHome, onBack }) {
                   onRate={(c, i, v) => setRate(current.no, c, i, v)}
                   onReceived={(c) => toggleReceived(current.no, c)}
                   onMeta={(c, f, v) => setMeta(current.no, c, f, v)}
-                  onRemoveSupplier={(c) => removeSupplier(current.no, c)} />}
-            <p className="cs-hint">Tick “Quote received” for each supplier, then enter their rates, delivery and validity. Use <strong>Add Supplier</strong> to invite more, or ✕ on a column to remove one.</p>
+                  onField={(c, i, key, v) => setQuoteField(current.no, c, i, key, v)}
+                  onRemoveSupplier={csApproved ? undefined : (c) => setSupDel({ idx: c, name: current.quotes[c]?.supplier })} />}
+            {csApproved
+              ? <p className="cs-hint">Quotation approved — suppliers are locked. Re-open the Comparative Statement to change the supplier list.</p>
+              : <p className="cs-hint">Tick “Quote received” for each supplier, then per item enter their <strong>rate, brand/origin, specification, VAT%</strong> and any remarks, plus delivery and validity. Use <strong>Add Supplier</strong> to invite more, or ✕ on a column to remove one.</p>}
           </div>
         </section>
 
         <footer className="content-foot">Request for Quotation · {current.no} · DataMart Enterprise Suite</footer>
-        {printOverlay}{confirmModal}{supAddModal}
+        {printOverlay}{confirmModal}{supAddModal}{supDelModal}
       </div>
     )
   }
@@ -841,15 +1367,28 @@ export default function Rfq({ onHome, onBack }) {
         </section>
 
         <section className="panel form-panel">
-          <div className="panel-head"><h2><Building size={16} /> Invite Suppliers {touched && supSel.length === 0 && <em className="req-em">— select at least one</em>}</h2></div>
-          <div className="sup-pick">
-            {SUPPLIERS.map((s) => (
-              <label key={s} className={`sup-chip ${supSel.includes(s) ? 'on' : ''}`}>
-                <input type="checkbox" checked={supSel.includes(s)} onChange={() => toggleSup(s)} />
-                <Building size={15} /> {s}
-              </label>
-            ))}
+          <div className="panel-head">
+            <h2><Building size={16} /> Invite Suppliers {touched && supSel.length === 0 && <em className="req-em">— select at least one</em>}</h2>
+            <button type="button" className="btn btn-ghost sm" onClick={openSupAdd}><Plus size={15} /> Add Supplier</button>
           </div>
+          <div className="sup-pick">
+            {[...SUPPLIERS, ...customSups].map((s) => {
+              const on = supSel.includes(s)
+              const isCustom = !SUPPLIERS.includes(s)
+              return (
+                <span key={s} className={`sup-chip ${on ? 'on' : ''}`} role="button" tabIndex={0}
+                  onClick={() => toggleSup(s)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSup(s) } }}>
+                  <Building size={15} /> {s}
+                  {isCustom && (
+                    <button type="button" className="sup-chip-x" title="Remove supplier"
+                      onClick={(e) => { e.stopPropagation(); removeCustomSupplier(s) }}><X size={13} /></button>
+                  )}
+                </span>
+              )
+            })}
+          </div>
+          <p className="sup-pick-hint">Click a supplier to invite or remove it, or use <strong>Add Supplier</strong> to search the list or add a new one.</p>
           <div className="rfq-remarks">
             <label><span>Remarks</span><textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} placeholder="Terms, instructions…" /></label>
           </div>
@@ -857,7 +1396,7 @@ export default function Rfq({ onHome, onBack }) {
 
         {touched && !canSend && <p className="form-hint">Choose a department, quote-by date, at least one item with quantity, and one supplier.</p>}
         <footer className="content-foot">New RFQ · DataMart Enterprise Suite</footer>
-        {pickerModal}
+        {pickerModal}{formSupAddModal}
       </div>
     )
   }

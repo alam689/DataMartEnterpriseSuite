@@ -10,6 +10,13 @@ import ModuleHome from './modules/ModuleHome.jsx'
 import CommonApp from './modules/CommonApp.jsx'
 import Requisition from './modules/procurement/Requisition.jsx'
 import Rfq from './modules/procurement/Rfq.jsx'
+import PurchaseOrder from './modules/procurement/PurchaseOrder.jsx'
+import SupplierManagement from './modules/procurement/SupplierManagement.jsx'
+import GoodsReceipt from './modules/procurement/GoodsReceipt.jsx'
+import PurchaseInvoice from './modules/procurement/PurchaseInvoice.jsx'
+import PurchaseReturn from './modules/procurement/PurchaseReturn.jsx'
+import ProcurementReports from './modules/procurement/ProcurementReports.jsx'
+import PrStatusReport from './modules/procurement/PrStatusReport.jsx'
 import './Home.css'
 
 // Modules rendered via the generic ModuleHome ('common' has its own hub screen).
@@ -138,7 +145,21 @@ export default function Home({ user, onLogout }) {
           {active === 'procurement' && sub === 'requisition' ? (
             <Requisition onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
           ) : active === 'procurement' && sub === 'rfq' ? (
-            <Rfq onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+            <Rfq onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} user={user} />
+          ) : active === 'procurement' && sub === 'po' ? (
+            <PurchaseOrder onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'procurement' && sub === 'supplier' ? (
+            <SupplierManagement onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'procurement' && sub === 'grn' ? (
+            <GoodsReceipt onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} user={user} />
+          ) : active === 'procurement' && sub === 'invoice' ? (
+            <PurchaseInvoice onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'procurement' && sub === 'return' ? (
+            <PurchaseReturn onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'procurement' && sub === 'reports' ? (
+            <ProcurementReports onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'procurement' && sub === 'prstatus' ? (
+            <PrStatusReport onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
           ) : active === 'common' ? (
             <CommonApp onHome={() => selectModule('dashboard')} />
           ) : moduleHomeKeys.has(active) ? (
