@@ -130,6 +130,27 @@ const itemBestRate = (rfq, i) => {
   return vals.length ? Math.min(...vals) : 0
 }
 const bestPriceTotal = (rfq) => rfq.items.reduce((s, it, i) => s + itemBestRate(rfq, i) * it.qty, 0)
+// Highest received rate for an item (0 if none quoted).
+const itemHighRate = (rfq, i) => {
+  const vals = rfq.quotes.filter((q) => q.received && Number(q.rates[i]) > 0).map((q) => Number(q.rates[i]))
+  return vals.length ? Math.max(...vals) : 0
+}
+// Rate of the awarded ("picked") supplier for an item; falls back to the lowest received rate before any award.
+const itemPickedRate = (rfq, i) => {
+  const sup = rfq.award?.[i]
+  if (sup) {
+    const q = rfq.quotes.find((x) => x.supplier === sup)
+    const r = q ? Number(q.rates[i]) || 0 : 0
+    if (r > 0) return r
+  }
+  return itemBestRate(rfq, i)
+}
+// Potential saving = Σ (highest bid − picked bid) × qty over items: what the chosen bids save vs the dearest quotes.
+const potentialSavingTotal = (rfq) => rfq.items.reduce((s, it, i) => {
+  const hi = itemHighRate(rfq, i)
+  const pick = itemPickedRate(rfq, i)
+  return s + (hi > 0 && pick > 0 ? (hi - pick) * it.qty : 0)
+}, 0)
 const lastPoTotal = (rfq) => rfq.items.reduce((s, it) => s + (Number(it.lastPrice) || 0) * it.qty, 0)
 const approvedTotal = (rfq) => rfq.items.reduce((s, it, i) => s + (rfq.award?.[i] ? lineAmount(rfq, rfq.award[i], i) : 0), 0)
 const prList = (rfq) => [...new Set(rfq.items.map((it) => it.prNo).filter(Boolean))]
@@ -202,6 +223,12 @@ const awardSummary = (rfq) => {
 }
 const awardGrand = (rfq) => Object.values(awardSummary(rfq)).reduce((s, x) => s + x.amount, 0)
 const allAwarded = (rfq) => rfq.items.length > 0 && rfq.items.every((_, i) => rfq.award?.[i])
+// Auto-award each item to the supplier with the lowest received rate ('' if none quoted).
+const bestAward = (rfq) => rfq.items.map((_, i) => {
+  const cand = rfq.quotes.filter((q) => q.received && Number(q.rates[i]) > 0)
+  if (!cand.length) return ''
+  return cand.reduce((a, b) => (Number(a.rates[i]) <= Number(b.rates[i]) ? a : b)).supplier
+})
 
 let itemSeq = 1
 const newItem = () => ({ id: itemSeq++, item: '', desc: '', uom: '', qty: '', prNo: '' })
@@ -419,8 +446,13 @@ function CsTable({ rfq, onPick }) {
                       </td>
                       <td className={`csb-num csb-total ${isAward ? 'is-award' : ''}`}>
                         <span>{rate ? num(total) : '—'}</span>
-                        <input type="checkbox" checked={isAward} disabled={!editable || !rate}
-                          onChange={() => onPick(i, q.supplier)} title="Award this item to this supplier" />
+                        {rate ? (
+                          <button type="button" className={`csb-pick ${isAward ? 'picked' : ''}`} disabled={!editable}
+                            onClick={() => onPick(i, q.supplier)}
+                            title={isAward ? 'Awarded — click to clear' : 'Award this item to this supplier'}>
+                            {isAward ? <><CheckCircle2 size={12} /> Picked</> : 'Pick'}
+                          </button>
+                        ) : null}
                       </td>
                     </Fragment>
                   )
@@ -501,7 +533,7 @@ function CsDocument({ rfq }) {
         <div><span>Best-price total</span><strong>{num(bestPriceTotal(rfq))}</strong></div>
         <div><span>Last-PO total</span><strong>{num(lastPoTotal(rfq))}</strong></div>
         <div><span>Approved total</span><strong>{num(approvedTotal(rfq))}</strong></div>
-        <div><span>Potential saving</span><strong>{num(Math.max(0, lastPoTotal(rfq) - bestPriceTotal(rfq)))}</strong></div>
+        <div><span>Potential saving</span><strong>{num(potentialSavingTotal(rfq))}</strong></div>
       </div>
       <table className="doc-table doc-cs-table">
         <thead>
@@ -746,12 +778,18 @@ export default function Rfq({ onHome, onBack, user }) {
   const openCs = (no) => {
     const r = rfqs.find((x) => x.no === no)
     if (r && (!r.award || r.award.length !== r.items.length || r.award.every((a) => !a))) {
-      const award = r.items.map((_, i) => {
-        const cand = r.quotes.filter((q) => q.received && Number(q.rates[i]) > 0)
-        if (!cand.length) return ''
-        return cand.reduce((a, b) => (Number(a.rates[i]) <= Number(b.rates[i]) ? a : b)).supplier
-      })
-      updateRfq(no, (x) => ({ ...x, award }))
+      updateRfq(no, (x) => ({ ...x, award: bestAward(x) }))
+    }
+    setSelectedNo(no); setMode('cs')
+  }
+  // Submit recorded quotations: freshly pick the lowest price per item as the award,
+  // then open the Comparative Statement (where the awarded supplier can still be changed).
+  // A locked (verified/approved) CS is opened read-only without re-picking.
+  const submitQuotations = (no) => {
+    const r = rfqs.find((x) => x.no === no)
+    if (!r) return
+    if (r.csStatus !== 'Verified' && r.csStatus !== 'Approved') {
+      updateRfq(no, (x) => ({ ...x, award: bestAward(x) }))
     }
     setSelectedNo(no); setMode('cs')
   }
@@ -1113,7 +1151,7 @@ export default function Rfq({ onHome, onBack, user }) {
     const best = bestPriceTotal(current)
     const lastPo = lastPoTotal(current)
     const approved = approvedTotal(current)
-    const saving = Math.max(0, lastPo - best)
+    const saving = potentialSavingTotal(current)
     const creatorEditable = st === 'None' || st === 'Rejected'
     const who = (email) => <div className="cs-who"><span className="cs-av">{String(email).slice(0, 2).toUpperCase()}</span>{email}</div>
     return (
@@ -1153,10 +1191,10 @@ export default function Rfq({ onHome, onBack, user }) {
         </div>
 
         <section className="panel">
-          <div className="panel-head"><h2><Scale size={16} /> Comparative Statement (CS)</h2>{!allAwarded(current) && <em className="req-em">— tick a supplier per row to award</em>}</div>
+          <div className="panel-head"><h2><Scale size={16} /> Comparative Statement (CS)</h2>{!allAwarded(current) && <em className="req-em">— Pick a supplier per row to award</em>}</div>
           <div className="cs-pad">
             <CsTable rfq={current} onPick={(i, s) => toggleAwardPick(current.no, i, s)} />
-            <p className="cs-hint">Lowest rate per item is highlighted green; tick the box in a supplier’s <strong>TOTAL</strong> column to award that item. % shown on each rate is vs. the item’s last purchase price.</p>
+            <p className="cs-hint">Lowest rate per item is highlighted green; press <strong>Pick</strong> in a supplier’s <strong>TOTAL</strong> column to award that item (press again to clear). % shown on each rate is vs. the item’s last purchase price.</p>
           </div>
         </section>
 
@@ -1296,6 +1334,14 @@ export default function Rfq({ onHome, onBack, user }) {
             {csApproved
               ? <p className="cs-hint">Quotation approved — suppliers are locked. Re-open the Comparative Statement to change the supplier list.</p>
               : <p className="cs-hint">Tick “Quote received” for each supplier, then per item enter their <strong>rate, brand/origin, specification, VAT%</strong> and any remarks, plus delivery and validity. Use <strong>Add Supplier</strong> to invite more, or ✕ on a column to remove one.</p>}
+            {!csApproved && current.quotes.length > 0 && (
+              <div className="rq-submit">
+                <button className="btn btn-primary" onClick={() => submitQuotations(current.no)} disabled={recd === 0}>
+                  <Send size={16} /> Submit Quotations
+                </button>
+                <span className="rq-submit-hint">Picks the lowest price per item into the Comparative Statement — you can still change the awarded supplier there.</span>
+              </div>
+            )}
           </div>
         </section>
 
