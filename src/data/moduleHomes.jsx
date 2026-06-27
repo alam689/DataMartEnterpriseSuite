@@ -24,7 +24,7 @@ export const moduleHomes = {
   sysadmin: {
     actions: [
       { label: 'Audit Log', icon: ScrollText },
-      { label: 'Add User', icon: UserPlus, primary: true },
+      { label: 'Add User', icon: UserPlus, primary: true, screen: 'users' },
     ],
     kpis: [
       { label: 'Active Users', value: '128', tone: 'teal', sub: '14 online now' },
@@ -35,14 +35,14 @@ export const moduleHomes = {
       { label: 'Last Backup', value: '02:00', tone: 'violet', sub: 'completed · 2.4 GB' },
     ],
     functions: [
-      { name: 'User Management', desc: 'Create, edit, deactivate & reset users.', icon: Users, accent: '#3f8fd1', count: '128 users' },
-      { name: 'Roles & Permissions', desc: 'Define roles and grant access rights.', icon: ShieldCheck, accent: '#8a6fd0', count: '24 roles' },
-      { name: 'Access Control', desc: 'Module & feature-level permissions.', icon: KeyRound, accent: '#2f8f8a', count: '12 modules' },
-      { name: 'Audit Log', desc: 'Track every action and change.', icon: ScrollText, accent: '#c2882f', count: '8.4K events' },
-      { name: 'Security Policy', desc: 'Password, 2FA & lockout rules.', icon: Lock, accent: '#c66262', count: '5 policies' },
-      { name: 'Active Sessions', desc: 'Monitor and revoke live sessions.', icon: Activity, accent: '#3fae8e', count: '41 live' },
-      { name: 'Backup & Restore', desc: 'Schedule, run & restore backups.', icon: Database, accent: '#7d8ad1', count: 'Daily 02:00' },
-      { name: 'License & System', desc: 'Version, license & system health.', icon: Server, accent: '#6aa36a', count: 'v1.0' },
+      { name: 'User Management', desc: 'Create, edit, deactivate & reset users.', icon: Users, accent: '#3f8fd1', count: '128 users', screen: 'users' },
+      { name: 'Roles & Permissions', desc: 'Define roles and grant access rights.', icon: ShieldCheck, accent: '#8a6fd0', count: '24 roles', screen: 'roles' },
+      { name: 'Access Control', desc: 'Module & feature-level permissions.', icon: KeyRound, accent: '#2f8f8a', count: '12 modules', screen: 'access' },
+      { name: 'Audit Log', desc: 'Track every action and change.', icon: ScrollText, accent: '#c2882f', count: '8.4K events', screen: 'audit' },
+      { name: 'Security Policy', desc: 'Password, 2FA & lockout rules.', icon: Lock, accent: '#c66262', count: '5 policies', screen: 'security' },
+      { name: 'Active Sessions', desc: 'Monitor and revoke live sessions.', icon: Activity, accent: '#3fae8e', count: '41 live', screen: 'sessions' },
+      { name: 'Backup & Restore', desc: 'Schedule, run & restore backups.', icon: Database, accent: '#7d8ad1', count: 'Daily 02:00', screen: 'backup' },
+      { name: 'License & System', desc: 'Version, license & system health.', icon: Server, accent: '#6aa36a', count: 'v1.0', screen: 'license' },
     ],
     queue: {
       title: 'Pending Access Requests', icon: Clock4,

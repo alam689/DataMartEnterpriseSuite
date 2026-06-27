@@ -38,7 +38,8 @@ export default function ModuleHome({ moduleKey, onHome, onOpen }) {
           {cfg.actions.map((a) => {
             const Icon = a.icon
             return (
-              <button key={a.label} className={`btn ${a.primary ? 'btn-primary' : 'btn-ghost'}`}>
+              <button key={a.label} className={`btn ${a.primary ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => a.screen && onOpen?.(a.screen)}>
                 <Icon size={17} /> {a.label}
               </button>
             )

@@ -1,0 +1,65 @@
+/* =====================================================================
+   System Administration — Roles & Permissions.
+   Builds on the global .req-*, .status, .tone-*, .panel, .modal & .btn
+   classes; only role-card and matrix specifics live here.
+   ===================================================================== */
+
+/* ---- Role cards (list) ---- */
+.role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; margin-bottom: 26px; }
+.role-card {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 16px 12px; box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+.role-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.rc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.rc-name { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.rc-name strong { font-size: 15px; font-weight: 700; }
+.rc-ic {
+  flex: none; width: 30px; height: 30px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tc) 28%, transparent);
+}
+.rc-desc { margin: 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.45; min-height: 36px; }
+.rc-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 4px; border-top: 1px solid var(--border); }
+.rc-meta span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
+.rc-meta svg { color: var(--text-faint); }
+.rc-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+.row-act.del:hover:not(:disabled) { background: color-mix(in srgb, var(--t-rose) 14%, transparent); color: var(--t-rose); border-color: color-mix(in srgb, var(--t-rose) 30%, transparent); }
+.row-act:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---- Editor: details + lock note ---- */
+.rp-lock-note {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 16px;
+  padding: 10px 14px; font-size: 13px; color: var(--text-muted);
+  background: color-mix(in srgb, var(--t-blue) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--t-blue) 26%, transparent); border-radius: var(--radius-sm);
+}
+.rp-lock-note svg { color: var(--t-blue); flex: none; }
+.rp-detail-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+@media (max-width: 640px) { .rp-detail-grid { grid-template-columns: 1fr; } }
+
+/* ---- Permission matrix ---- */
+.perm-table { min-width: 720px; }
+.perm-table thead th { text-align: center; }
+.perm-table th.perm-mod-h { text-align: left; }
+.perm-act-h.clickable { cursor: pointer; user-select: none; }
+.perm-act-h.clickable:hover { color: var(--primary); }
+.perm-table td { vertical-align: middle; }
+.perm-mod { display: flex; align-items: center; gap: 10px; }
+.perm-mod-ic {
+  flex: none; width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent);
+}
+.perm-mod-name { display: flex; flex-direction: column; line-height: 1.2; }
+.perm-mod-name { font-size: 13.5px; font-weight: 600; }
+.perm-mod-name em { font-style: normal; font-size: 10.5px; font-weight: 500; color: var(--text-faint); margin-top: 2px; }
+.perm-cell { text-align: center; width: 76px; }
+.perm-all { border-right: 1px solid var(--border); background: color-mix(in srgb, var(--primary) 4%, transparent); }
+.perm-table tbody tr.perm-on { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.perm-table input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; vertical-align: middle; }
+.perm-table input[type='checkbox']:disabled { cursor: not-allowed; opacity: 0.5; }
+.perm-all-h { border-right: 1px solid var(--border); }

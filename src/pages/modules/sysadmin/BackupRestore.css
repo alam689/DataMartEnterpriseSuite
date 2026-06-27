@@ -1,0 +1,30 @@
+/* =====================================================================
+   System Administration — Backup & Restore.
+   Builds on global .req-*, .panel, .status, .tone-*, .modal & .btn classes.
+   ===================================================================== */
+
+.br-flash {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 16px;
+  padding: 10px 14px; font-size: 13px; font-weight: 600; border-radius: var(--radius-sm);
+  color: var(--t-green); background: color-mix(in srgb, var(--t-green) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--t-green) 30%, transparent);
+}
+.br-sm { font-size: 16px !important; }
+.br-unit { font-style: normal; font-size: 13px; font-weight: 600; color: var(--text-faint); }
+
+.br-spin { animation: br-spin 0.9s linear infinite; }
+@keyframes br-spin { to { transform: rotate(360deg); } }
+
+/* Schedule panel */
+.br-sched { margin-bottom: 16px; }
+.br-sched-body { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 14px 18px 18px; }
+@media (max-width: 760px) { .br-sched-body { grid-template-columns: repeat(2, 1fr); } }
+
+/* History table */
+.br-table-wrap { margin: 0; border: 0; box-shadow: none; border-radius: 0; }
+.br-table td { vertical-align: middle; }
+.br-when { white-space: nowrap; font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.br-loc { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); }
+.br-loc svg { color: var(--text-faint); }
+.row-act.del:hover:not(:disabled) { background: color-mix(in srgb, var(--t-rose) 14%, transparent); color: var(--t-rose); border-color: color-mix(in srgb, var(--t-rose) 30%, transparent); }
+.row-act:disabled { opacity: 0.4; cursor: not-allowed; }

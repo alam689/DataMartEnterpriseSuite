@@ -1,0 +1,55 @@
+/* =====================================================================
+   System Administration — Security Policy.
+   Builds on global .req-*, .panel, .status, .tone-*, .btn classes.
+   ===================================================================== */
+
+.sp-flash {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 16px;
+  padding: 10px 14px; font-size: 13px; font-weight: 600; border-radius: var(--radius-sm);
+  color: var(--t-green); background: color-mix(in srgb, var(--t-green) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--t-green) 30%, transparent);
+}
+.sp-flash.dirty { color: var(--t-amber); background: color-mix(in srgb, var(--t-amber) 11%, transparent); border-color: color-mix(in srgb, var(--t-amber) 28%, transparent); }
+
+.sp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 26px; }
+.sp-panel { margin: 0; }
+.sp-wide { grid-column: 1 / -1; }
+@media (max-width: 860px) { .sp-grid { grid-template-columns: 1fr; } }
+
+.sp-body { padding: 6px 18px 14px; }
+.sp-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.sp-row:last-child { border-bottom: 0; }
+.sp-row-l { display: flex; flex-direction: column; gap: 2px; }
+.sp-row-label { font-size: 13.5px; font-weight: 600; }
+.sp-row-hint { font-size: 11.5px; color: var(--text-faint); }
+.sp-row-c { flex: none; }
+
+/* Strength meter */
+.sp-strength { height: 6px; margin: 0 18px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.sp-strength-fill { height: 100%; border-radius: 999px; background: var(--tc); transition: width var(--transition); }
+.sp-strength-fill.tone-green { --tc: var(--t-green); } .sp-strength-fill.tone-amber { --tc: var(--t-amber); } .sp-strength-fill.tone-rose { --tc: var(--t-rose); }
+
+/* Number input */
+.sp-num { display: inline-flex; align-items: center; gap: 7px; }
+.sp-num input { width: 72px; text-align: right; font: inherit; font-size: 13.5px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; outline: none; }
+.sp-num input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.sp-num span { font-size: 12px; color: var(--text-faint); min-width: 56px; }
+.sp-text { width: 280px; max-width: 100%; font: inherit; font-size: 13px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; outline: none; }
+.sp-text:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.sp-text:disabled { opacity: 0.5; }
+.sp-hours { display: inline-flex; align-items: center; gap: 8px; }
+.sp-hours input { font: inherit; font-size: 13px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; outline: none; }
+.sp-hours input:disabled { opacity: 0.5; }
+.sp-hours span { font-size: 12px; color: var(--text-faint); }
+
+/* Toggle switch */
+.sp-switch { position: relative; flex: none; width: 40px; height: 23px; border-radius: 999px; border: 0; padding: 0; background: var(--border-strong); cursor: pointer; transition: background var(--transition); }
+.sp-switch.on { background: var(--primary); }
+.sp-knob { position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: transform var(--transition); }
+.sp-switch.on .sp-knob { transform: translateX(17px); }
+
+/* Segmented control */
+.sp-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.sp-seg-btn { border: 0; background: var(--surface); color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-right: 1px solid var(--border); }
+.sp-seg-btn:last-child { border-right: 0; }
+.sp-seg-btn.on { background: var(--primary); color: var(--primary-contrast); }

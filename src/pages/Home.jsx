@@ -17,6 +17,14 @@ import PurchaseInvoice from './modules/procurement/PurchaseInvoice.jsx'
 import PurchaseReturn from './modules/procurement/PurchaseReturn.jsx'
 import ProcurementReports from './modules/procurement/ProcurementReports.jsx'
 import PrStatusReport from './modules/procurement/PrStatusReport.jsx'
+import UserManagement from './modules/sysadmin/UserManagement.jsx'
+import RolesPermissions from './modules/sysadmin/RolesPermissions.jsx'
+import AccessControl from './modules/sysadmin/AccessControl.jsx'
+import AuditLog from './modules/sysadmin/AuditLog.jsx'
+import SecurityPolicy from './modules/sysadmin/SecurityPolicy.jsx'
+import ActiveSessions from './modules/sysadmin/ActiveSessions.jsx'
+import BackupRestore from './modules/sysadmin/BackupRestore.jsx'
+import LicenseSystem from './modules/sysadmin/LicenseSystem.jsx'
 import './Home.css'
 
 // Modules rendered via the generic ModuleHome ('common' has its own hub screen).
@@ -160,6 +168,22 @@ export default function Home({ user, onLogout }) {
             <ProcurementReports onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
           ) : active === 'procurement' && sub === 'prstatus' ? (
             <PrStatusReport onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'sysadmin' && sub === 'users' ? (
+            <UserManagement onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} user={user} />
+          ) : active === 'sysadmin' && sub === 'roles' ? (
+            <RolesPermissions onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'sysadmin' && sub === 'access' ? (
+            <AccessControl onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'sysadmin' && sub === 'audit' ? (
+            <AuditLog onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'sysadmin' && sub === 'security' ? (
+            <SecurityPolicy onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'sysadmin' && sub === 'sessions' ? (
+            <ActiveSessions onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'sysadmin' && sub === 'backup' ? (
+            <BackupRestore onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
+          ) : active === 'sysadmin' && sub === 'license' ? (
+            <LicenseSystem onHome={() => selectModule('dashboard')} onBack={() => setSub(null)} />
           ) : active === 'common' ? (
             <CommonApp onHome={() => selectModule('dashboard')} />
           ) : moduleHomeKeys.has(active) ? (

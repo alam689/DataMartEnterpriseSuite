@@ -1,0 +1,63 @@
+/* =====================================================================
+   System Administration — Access Control.
+   Module accordion with an on/off switch + feature-level role chips.
+   Builds on the global .req-*, .status, .tone-*, .btn & .chip classes.
+   ===================================================================== */
+
+.ac-of { font-style: normal; font-size: 13px; font-weight: 600; color: var(--text-faint); margin-left: 4px; }
+
+.ac-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+
+/* ---- Module row (accordion) ---- */
+.ac-mod { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color var(--transition); }
+.ac-mod.open { border-color: var(--border-strong); }
+.ac-mod-head { display: flex; align-items: center; gap: 13px; padding: 13px 16px; cursor: pointer; }
+.ac-mod-head:hover { background: var(--surface-hover); }
+.ac-chev { color: var(--text-faint); flex: none; transition: transform var(--transition); }
+.ac-mod.open .ac-chev { transform: rotate(180deg); }
+.ac-mod-ic {
+  flex: none; width: 32px; height: 32px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent);
+}
+.ac-mod-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ac-mod-title strong { font-size: 14.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.ac-mod-title span { font-size: 12px; color: var(--text-muted); }
+.ac-off-badge { font-size: 10.5px; }
+.ac-mod-spacer { flex: 1; }
+.ac-switch-label { font-size: 11.5px; font-weight: 600; color: var(--text-muted); min-width: 48px; text-align: right; }
+
+/* Toggle switch */
+.ac-switch { position: relative; flex: none; width: 40px; height: 23px; border-radius: 999px; border: 0; padding: 0; background: var(--border-strong); cursor: pointer; transition: background var(--transition); }
+.ac-switch.on { background: var(--primary); }
+.ac-knob { position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: transform var(--transition); }
+.ac-switch.on .ac-knob { transform: translateX(17px); }
+
+/* ---- Expanded body ---- */
+.ac-body { border-top: 1px solid var(--border); background: var(--surface-2); }
+.ac-mod.off .ac-body { opacity: 0.55; }
+
+.ac-bulk { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px dashed var(--border-strong); }
+.ac-bulk-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-faint); }
+
+.ac-feat-list { display: flex; flex-direction: column; }
+.ac-feat { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 16px; border-bottom: 1px solid var(--border); }
+.ac-feat:last-child { border-bottom: 0; }
+.ac-feat-name { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; min-width: 190px; }
+.ac-feat-name svg { color: var(--text-faint); flex: none; }
+.ac-feat-count { font-size: 11px; color: var(--text-faint); min-width: 60px; }
+
+/* Role chips (toggle) */
+.ac-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.ac-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; font-weight: 600; line-height: 1;
+  padding: 5px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+  cursor: pointer; transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.ac-chip:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
+.ac-chip.on { background: color-mix(in srgb, var(--primary) 14%, transparent); border-color: color-mix(in srgb, var(--primary) 42%, transparent); color: var(--primary); }
+.ac-chip.part { background: color-mix(in srgb, var(--primary) 6%, transparent); border-color: color-mix(in srgb, var(--primary) 28%, transparent); color: var(--text-muted); border-style: dashed; }
+.ac-chip.locked { background: color-mix(in srgb, var(--t-blue) 12%, transparent); border-color: color-mix(in srgb, var(--t-blue) 32%, transparent); color: var(--t-blue); cursor: not-allowed; }
+.ac-chip:disabled:not(.locked) { opacity: 0.4; cursor: not-allowed; }

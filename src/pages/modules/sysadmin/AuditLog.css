@@ -1,0 +1,33 @@
+/* =====================================================================
+   System Administration — Audit Log.
+   Builds on the global .req-*, .status, .tone-*, .modal & .btn classes.
+   ===================================================================== */
+
+.al-tool-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.al-select {
+  appearance: auto; font: inherit; font-size: 13px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 10px; outline: none; cursor: pointer;
+}
+.al-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+
+.al-table td { vertical-align: middle; }
+.al-time { white-space: nowrap; font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.al-user { display: flex; flex-direction: column; gap: 1px; }
+.al-user strong { font-size: 12.5px; font-weight: 600; }
+.al-user span { font-size: 11px; color: var(--text-faint); }
+.al-action { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; color: var(--tc); background: color-mix(in srgb, var(--tc) 13%, transparent); white-space: nowrap; }
+.al-mod { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+.al-target { font-size: 12.5px; max-width: 280px; }
+.al-ip { font-size: 12px; color: var(--text-muted) !important; }
+
+/* Detail modal */
+.al-detail { position: relative; }
+.al-close { position: absolute; top: 14px; right: 14px; display: inline-flex; border: 0; background: transparent; color: var(--text-faint); border-radius: 8px; padding: 4px; }
+.al-close:hover { background: var(--surface-hover); color: var(--text); }
+.al-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; text-align: left; margin: 6px 0 4px; }
+.al-detail-grid > div { display: flex; flex-direction: column; gap: 3px; }
+.al-detail-grid span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); }
+.al-detail-grid strong { font-size: 13.5px; font-weight: 600; }
+.al-detail-grid p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.al-detail-full { grid-column: 1 / -1; }

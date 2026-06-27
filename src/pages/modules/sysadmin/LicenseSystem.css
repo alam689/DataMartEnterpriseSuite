@@ -1,0 +1,52 @@
+/* =====================================================================
+   System Administration — License & System.
+   Builds on global .req-*, .panel, .status, .tone-*, .modal & .btn classes.
+   ===================================================================== */
+
+.ls-flash {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 16px;
+  padding: 10px 14px; font-size: 13px; font-weight: 600; border-radius: var(--radius-sm);
+  color: var(--t-green); background: color-mix(in srgb, var(--t-green) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--t-green) 30%, transparent);
+}
+.ls-spin { animation: ls-spin 0.9s linear infinite; }
+@keyframes ls-spin { to { transform: rotate(360deg); } }
+
+.ls-top { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media (max-width: 900px) { .ls-top { grid-template-columns: 1fr; } }
+.ls-license, .ls-health { margin: 0; }
+
+/* License */
+.ls-lic-body { padding: 8px 18px 16px; }
+.ls-lic-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.ls-lic-row:last-child { border-bottom: 0; }
+.ls-lic-row > span { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-faint); display: inline-flex; align-items: center; gap: 6px; }
+.ls-lic-row > strong { font-size: 13.5px; font-weight: 600; text-align: right; }
+.ls-edition { font-style: normal; font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-soft); border-radius: 6px; padding: 2px 7px; margin-left: 4px; }
+.ls-key { display: inline-flex; align-items: center; gap: 6px; }
+.ls-key code { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: var(--text); }
+.ls-key-btn { display: inline-flex; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); border-radius: 8px; padding: 5px; }
+.ls-key-btn:hover { background: var(--surface-hover); color: var(--text); border-color: var(--border-strong); }
+.ls-seats { align-items: center; }
+.ls-seat-wrap { display: flex; align-items: center; gap: 12px; }
+.ls-seat-bar { width: 140px; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.ls-seat-fill { height: 100%; background: var(--primary); border-radius: 999px; }
+.ls-seat-wrap strong em { font-style: normal; color: var(--text-faint); font-weight: 600; }
+
+/* System health */
+.ls-health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 18px 18px; }
+@media (max-width: 480px) { .ls-health-grid { grid-template-columns: 1fr; } }
+.ls-health-card { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.ls-health-ic { flex: none; width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent); }
+.ls-health-card > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ls-health-card span { font-size: 11px; color: var(--text-faint); }
+.ls-health-card strong { font-size: 13px; font-weight: 600; }
+
+/* Licensed modules */
+.ls-mods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 18px 18px; }
+@media (max-width: 760px) { .ls-mods { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .ls-mods { grid-template-columns: 1fr; } }
+.ls-mod { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.ls-mod-ic { flex: none; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent); }
+.ls-mod-name { flex: 1; font-size: 13px; font-weight: 600; min-width: 0; }
+.ls-mod-on { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--t-green); }
